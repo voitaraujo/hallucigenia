@@ -8,7 +8,8 @@
 	"author": "Voitila Araujo",
 	"scripts": {
 		"build": "esbuild --bundle src/hallucigenia.ts --platform=node --outfile=dist/hallucigenia.js --packages=external --format=esm",
-		"link-cli": "npm --global unlink hallucigenia && chmod +x ./dist/hallucigenia.js && npm --global link",
+		"link-cli-osx": "pnpm --global unlink hallucigenia && chmod +x ./dist/hallucigenia.js && pnpm --global link",
+		"link-cli-win": "pnpm --global unlink hallucigenia && pnpm --global link",
 		"prettier:check": "prettier --check .",
 		"prettier": "prettier --write .",
 		"lint:check": "eslint .",

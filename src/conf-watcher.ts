@@ -10,6 +10,7 @@ async function WatchRepositoryConfFiles(
 	const watcher = chokidar.watch(REPOSITORIES_PATH_IDENTIFIER, {
 		depth: 1,
 		ignored: (p) => {
+			const normalized_path = path.normalize(p);
 			/**
 			 * since chokidar watches folder/files recursively, eg.
 			 * - "repositories/"
@@ -22,20 +23,34 @@ async function WatchRepositoryConfFiles(
 			 * only file being validated is the .conf file.
 			 */
 
-			const isWatchedFolder = p === REPOSITORIES_PATH_IDENTIFIER;
+			const isWatchedFolder = normalized_path === REPOSITORIES_PATH_IDENTIFIER;
 			if (isWatchedFolder) return false;
 
 			const isDirectSubPath =
-				p
+				normalized_path
 					.replace(REPOSITORIES_PATH_IDENTIFIER, '')
 					.split(path.sep)
 					.filter(Boolean).length === 1;
 			if (isDirectSubPath) {
-				return fs.existsSync(p) && fs.statSync(p).isFile();
+				/**
+				 * the "path" can be either an dir or file, if its an direct sub "path"
+				 * we check if it's actually a file and if so we ignore it.
+				 *
+				 * also we have to check if the "path" still exists before checking for
+				 * a file or else we get an error after an observed "path" gets deleted.
+				 */
+
+				// return fs.statSync(p).isFile();
+				return (
+					fs.existsSync(normalized_path) &&
+					fs.statSync(normalized_path).isFile()
+				);
 			}
 
-			if (p.endsWith('.conf')) return false;
+			// finally, we don't ignore if it's a .conf file inside an direct subpath of the observed dir.
+			if (normalized_path.endsWith('.conf')) return false;
 
+			// any other case we ignore it.
 			return true;
 		},
 		ignoreInitial: true,
@@ -55,3 +70,4 @@ async function WatchRepositoryConfFiles(
 }
 
 export { WatchRepositoryConfFiles };
+
