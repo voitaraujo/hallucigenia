@@ -70,4 +70,3 @@ async function WatchRepositoryConfFiles(
 }
 
 export { WatchRepositoryConfFiles };
-

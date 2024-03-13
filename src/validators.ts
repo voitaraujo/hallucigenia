@@ -1,14 +1,14 @@
 import { FetchRepository } from './bitbucket-conn';
-import { RepositoryConfSchema, RepositoryPulseSignalSchema } from './schemas';
+import { RepositoryConf, RepositoryPulseSignal } from './types';
 
 const ValidatorsByContext = {
 	bitbucket: {
 		repository_name: async (
 			newRepositoryBitBucketData: Pick<
-				RepositoryConfSchema,
+				RepositoryConf,
 				'repository_workspace_name' | 'repository_name'
 			>,
-			signals: RepositoryPulseSignalSchema[]
+			signals: RepositoryPulseSignal[]
 		) => {
 			for (const signal of signals) {
 				const sameWS =
@@ -27,7 +27,7 @@ const ValidatorsByContext = {
 		},
 		access_token: async (
 			newRepositoryBitBucketData: Pick<
-				RepositoryConfSchema,
+				RepositoryConf,
 				| 'repository_workspace_name'
 				| 'repository_name'
 				| 'repository_access_token'
@@ -44,13 +44,10 @@ const ValidatorsByContext = {
 
 				return true;
 			} catch (err) {
-				return 'Could not connect to remote BitBucket repository using current combination of WORKSPACE NAME + REPOSITORY NAME + REPOSITORY ACCESS TOKEN';
+				return 'Could not establish connection with the remote repository';
 			}
 		},
-		slug: async (
-			newRepoSlug: string,
-			signals: RepositoryPulseSignalSchema[]
-		) => {
+		slug: async (newRepoSlug: string, signals: RepositoryPulseSignal[]) => {
 			for (const signal of signals) {
 				if (signal.repository_slug === newRepoSlug) {
 					return 'There is already a repository using this slug';
@@ -65,8 +62,8 @@ const ValidatorsByContext = {
 	},
 } satisfies {
 	[K: string]: {
-		[K: string]:
-			| ((...args: any[]) => string | boolean | Promise<string | boolean>)
+		[K: string]: // eslint-disable-next-line
+		| ((...args: any[]) => string | boolean | Promise<string | boolean>)
 			| undefined;
 	};
 };

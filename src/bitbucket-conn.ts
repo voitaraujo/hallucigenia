@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 import { BITBUCKET_API_BASE_ENDPOINT } from './constants';
-import { RepositoryConfSchema } from './schemas';
+import { RepositoryConf } from './types';
 
 function CreateConn(accessToken: string) {
 	return axios.create({
@@ -15,7 +15,7 @@ function CreateConn(accessToken: string) {
 
 async function FetchRepository(
 	repository: Pick<
-		RepositoryConfSchema,
+		RepositoryConf,
 		'repository_workspace_name' | 'repository_name' | 'repository_access_token'
 	>
 ) {
@@ -32,7 +32,7 @@ async function FetchRepository(
 
 async function FetchRepositoryBranches(
 	repository: Pick<
-		RepositoryConfSchema,
+		RepositoryConf,
 		'repository_workspace_name' | 'repository_name' | 'repository_access_token'
 	>
 ) {
@@ -43,8 +43,8 @@ async function FetchRepositoryBranches(
 	const reduced_branches = [];
 
 	while (next_page) {
-		const current_page_req: BranchesRequest = (
-			await conn.get<BranchesRequest>(
+		const current_page_req: BranchRequest = (
+			await conn.get<BranchRequest>(
 				next_page.replace(BITBUCKET_API_BASE_ENDPOINT, '')
 			)
 		).data;
@@ -60,7 +60,7 @@ async function FetchRepositoryBranches(
 
 export { FetchRepository, FetchRepositoryBranches };
 
-interface BranchesRequest {
+interface BranchRequest {
 	pagelen: number;
 	size: number;
 	values: [
