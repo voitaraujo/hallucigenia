@@ -306,6 +306,7 @@ const MENU: {
 			],
 		});
 
+		REPOSITORIES.DettachRepository(APP_STATE.getTargetRepositoryId());
 		APP_STATE.setMenu(repository_answer, APP_STATE.getTargetRepositoryId());
 	},
 	'delete repository': async () => {
