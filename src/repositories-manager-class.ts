@@ -53,20 +53,10 @@ export class RepositoriesManager {
     } satisfies RepositoryConf);
 
     if (safe_conf_content.success) {
-      fs.mkdirSync(`${REPOSITORIES_PATH_IDENTIFIER}/${newRepoSlug}/branches`, {
-        recursive: true,
-      });
 
-      fs.mkdirSync(`${REPOSITORIES_PATH_IDENTIFIER}/${newRepoSlug}/tmp`, {
-        recursive: true,
-      });
 
-      fs.mkdirSync(`${REPOSITORIES_PATH_IDENTIFIER}/${newRepoSlug}/scripts`, {
-        recursive: true,
-      });
-
-      fs.writeFileSync(
-        `${REPOSITORIES_PATH_IDENTIFIER}/${newRepoSlug}/${CONFIGURATION_FILE_IDENTIFIER}`,
+      fs.writeFileSync(path.join(
+        REPOSITORIES_PATH_IDENTIFIER, newRepoSlug, CONFIGURATION_FILE_IDENTIFIER),
         JSON.stringify(safe_conf_content.data),
         {
           encoding: 'utf-8',
@@ -80,15 +70,13 @@ export class RepositoriesManager {
   }
 
   DettachRepository(repoId: string) {
-    for (const repo of this.#repositories) {
-      if (repo.conf.repository_id === repoId) {
-        fs.rmSync(`${REPOSITORIES_PATH_IDENTIFIER}/${repo.repository_slug}`, {
-          recursive: true,
-          force: true,
-        });
+    const to_delete = this.#repositories.find(r => r.conf.repository_id === repoId)
 
-        break;
-      }
+    if (!!to_delete) {
+      fs.rmSync(path.join(REPOSITORIES_PATH_IDENTIFIER, to_delete.repository_slug), {
+        recursive: true,
+        force: true,
+      });
     }
   }
 
@@ -271,6 +259,8 @@ export class RepositoriesManager {
       if (repo.isFile()) return;
 
       const safe_conf_content = this.#GetConfAsSafeObject(repo.name);
+      this.#EnsureRepositoryFoldersExists(repo.name);
+
       const repo_scripts = fs
         .readdirSync(
           path.join(REPOSITORIES_PATH_IDENTIFIER, repo.name, 'scripts'),
@@ -291,5 +281,19 @@ export class RepositoriesManager {
     });
 
     return signals;
+  }
+
+  #EnsureRepositoryFoldersExists(repoSlug: string) {
+    fs.mkdirSync(path.join(REPOSITORIES_PATH_IDENTIFIER, repoSlug, 'branches'), {
+      recursive: true,
+    });
+
+    fs.mkdirSync(path.join(REPOSITORIES_PATH_IDENTIFIER, repoSlug, 'tmp'), {
+      recursive: true,
+    });
+
+    fs.mkdirSync(path.join(REPOSITORIES_PATH_IDENTIFIER, repoSlug, 'scripts'), {
+      recursive: true,
+    });
   }
 }
