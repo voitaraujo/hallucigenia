@@ -6,18 +6,19 @@ export type RepositoryConf = z.infer<typeof RepositoryConfSchema>;
 
 export type menu =
 	| 'home'
-	| 'repositories'
-	| 'observable repositories'
-	| 'observed branches'
-	| 'add repository'
-	| 'quit'
-	| 'repository options'
-	| 'delete repository'
 	| 'watch mode'
+	| 'repositories'
+	| 'add repository'
+	| 'check repos'
+	| 'repository options'
+	| 'branches'
+	| 'side effects'
+	| 'delete repository'
 	| 'check branches'
-	| 'check repos';
+	| 'quit';
 
 export interface RepositoryPulseSignal {
 	repository_slug: string;
 	conf: RepositoryConf;
+  scripts: string[]
 }

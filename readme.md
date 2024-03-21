@@ -1,10 +1,10 @@
-## Scuffed CLI tool for local deployments
+## scuffed CLI tool for tracking updates to repository branches on bitbucket
 
 - Register your BitBucket repositories; <br>
 - Mark the Branches to be observed; <br>
 - Run scripts when any of them are updated; <br>
 
-[ ] Encrypt data on .conf files<br>
-[ ] Make the "monitoring" feature a independent process<br>
-[-] Use chokidar to monitor & update the app state when any file inside "repositories" change<br>
-[ ] Fix grammar<br>
+[TODO] Encrypt data on .conf files<br>
+[TODO] Make the "watching" feature a independent process<br>
+[REEVALUATING] Use chokidar to monitor & update the app state when any file inside "repositories" change<br>
+[IN PROGRESS] Fix grammar<br>

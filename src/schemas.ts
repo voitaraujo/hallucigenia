@@ -14,4 +14,3 @@ export const RepositoryConfSchema = z.object({
 	observed_branches: z.array(Branches),
 	remote_connection_status: z.enum(['ok', 'ko']),
 });
-

@@ -4,276 +4,292 @@ import fs from 'fs';
 import path from 'path';
 
 import {
-	CONFIGURATION_FILE_IDENTIFIER,
-	REPOSITORIES_PATH_IDENTIFIER,
+  CONFIGURATION_FILE_IDENTIFIER,
+  REPOSITORIES_PATH_IDENTIFIER,
 } from './constants';
 import { RepositoryConfSchema } from './schemas';
 import { RepositoryConf, RepositoryPulseSignal } from './types';
 
 export class RepositoriesManager {
-	#repositories;
+  #repositories;
 
-	constructor() {
-		this.#repositories = this.#PulseRepositories();
-	}
+  constructor() {
+    this.#repositories = this.#PulseRepositories();
+  }
 
-	GetRepos() {
-		return this.#repositories;
-	}
+  GetRepos() {
+    return this.#repositories;
+  }
 
-	GetRepo(id: string) {
-		const t = this.#repositories.find((r) => r.conf.repository_id === id);
+  GetRepo(id: string) {
+    const t = this.#repositories.find((r) => r.conf.repository_id === id);
 
-		if (!t) throw new Error('Repository not found');
+    if (!t) throw new Error('Repository not found');
 
-		return t;
-	}
+    return t;
+  }
 
-	SyncRepos() {
-		this.#repositories = this.#PulseRepositories();
-	}
+  SyncRepos() {
+    this.#repositories = this.#PulseRepositories();
+  }
 
-	AttachRepository(
-		newRepoConfParts: Pick<
-			RepositoryConf,
-			| 'repository_workspace_name'
-			| 'repository_name'
-			| 'repository_access_token'
-		>,
-		newRepoSlug: string
-	) {
-		const safe_conf_content = RepositoryConfSchema.safeParse({
-			repository_id: randomUUID(),
-			...newRepoConfParts,
-			observed_branches: [],
-			branches: [],
-			remote_connection_status: 'ok',
-		} satisfies RepositoryConf);
+  AttachRepository(
+    newRepoConfParts: Pick<
+      RepositoryConf,
+      | 'repository_workspace_name'
+      | 'repository_name'
+      | 'repository_access_token'
+    >,
+    newRepoSlug: string
+  ) {
+    const id = randomUUID();
 
-		if (safe_conf_content.success) {
-			fs.mkdirSync(`${REPOSITORIES_PATH_IDENTIFIER}/${newRepoSlug}/branches`, {
-				recursive: true,
-			});
+    const safe_conf_content = RepositoryConfSchema.safeParse({
+      repository_id: id,
+      ...newRepoConfParts,
+      observed_branches: [],
+      branches: [],
+      remote_connection_status: 'ok',
+    } satisfies RepositoryConf);
 
-			fs.mkdirSync(`${REPOSITORIES_PATH_IDENTIFIER}/${newRepoSlug}/tmp`, {
-				recursive: true,
-			});
+    if (safe_conf_content.success) {
+      fs.mkdirSync(`${REPOSITORIES_PATH_IDENTIFIER}/${newRepoSlug}/branches`, {
+        recursive: true,
+      });
 
-			fs.mkdirSync(`${REPOSITORIES_PATH_IDENTIFIER}/${newRepoSlug}/logs`, {
-				recursive: true,
-			});
+      fs.mkdirSync(`${REPOSITORIES_PATH_IDENTIFIER}/${newRepoSlug}/tmp`, {
+        recursive: true,
+      });
 
-			fs.writeFileSync(
-				`${REPOSITORIES_PATH_IDENTIFIER}/${newRepoSlug}/${CONFIGURATION_FILE_IDENTIFIER}`,
-				JSON.stringify(safe_conf_content.data),
-				{
-					encoding: 'utf-8',
-				}
-			);
+      fs.mkdirSync(`${REPOSITORIES_PATH_IDENTIFIER}/${newRepoSlug}/scripts`, {
+        recursive: true,
+      });
 
-			return;
-		}
+      fs.writeFileSync(
+        `${REPOSITORIES_PATH_IDENTIFIER}/${newRepoSlug}/${CONFIGURATION_FILE_IDENTIFIER}`,
+        JSON.stringify(safe_conf_content.data),
+        {
+          encoding: 'utf-8',
+        }
+      );
 
-		throw new Error('Invalid repository .conf');
-	}
+      return id;
+    }
 
-	DettachRepository(repoId: string) {
-		for (const repo of this.#repositories) {
-			if (repo.conf.repository_id === repoId) {
-				fs.rmSync(`${REPOSITORIES_PATH_IDENTIFIER}/${repo.repository_slug}`, {
-					recursive: true,
-					force: true,
-				});
+    throw new Error('Invalid repository .conf');
+  }
 
-				break;
-			}
-		}
-	}
+  DettachRepository(repoId: string) {
+    for (const repo of this.#repositories) {
+      if (repo.conf.repository_id === repoId) {
+        fs.rmSync(`${REPOSITORIES_PATH_IDENTIFIER}/${repo.repository_slug}`, {
+          recursive: true,
+          force: true,
+        });
 
-	UpdateRepository(
-		repoId: string,
-		updatedRepositoryConf: Partial<Omit<RepositoryConf, 'repository_id'>>
-	) {
-		const repo = this.#repositories.find(
-			(r) => r.conf.repository_id === repoId
-		);
+        break;
+      }
+    }
+  }
 
-		if (!repo) throw new Error('Repository not found');
+  UpdateRepository(
+    repoId: string,
+    updatedRepositoryConf: Partial<Omit<RepositoryConf, 'repository_id'>>
+  ) {
+    const repo = this.#repositories.find(
+      (r) => r.conf.repository_id === repoId
+    );
 
-		const safe_conf_content = this.#GetConfAsSafeObject(repo.repository_slug);
+    if (!repo) throw new Error('Repository not found');
 
-		if (!safe_conf_content.success)
-			throw new Error("can't find .conf file to update");
-		if (repo.conf.repository_id !== safe_conf_content.data.repository_id)
-			throw new Error(".conf id's from cache and disk don't match");
+    const safe_conf_content = this.#GetConfAsSafeObject(repo.repository_slug);
 
-		const new_repo_conf = {
-			...repo.conf,
-			...updatedRepositoryConf,
-		};
+    if (!safe_conf_content.success)
+      throw new Error("can't find .conf file to update");
+    if (repo.conf.repository_id !== safe_conf_content.data.repository_id)
+      throw new Error(".conf id's from cache and disk don't match");
 
-		// update on fs
-		fs.writeFileSync(
-			this.#GetConfLocationPath(repo.repository_slug),
-			JSON.stringify(new_repo_conf)
-		);
+    const new_repo_conf = {
+      ...repo.conf,
+      ...updatedRepositoryConf,
+    };
 
-		// update on cached
-		this.#repositories = this.#repositories.map((r) =>
-			r.conf.repository_id === repo.conf.repository_id
-				? { repository_slug: r.repository_slug, conf: new_repo_conf }
-				: r
-		);
-	}
+    // update on fs
+    fs.writeFileSync(
+      this.#GetConfLocationPath(repo.repository_slug),
+      JSON.stringify(new_repo_conf)
+    );
 
-	async CacheBranch(repoId: string, branchName: string) {
-		const repo = this.#repositories.find(
-			(r) => r.conf.repository_id === repoId
-		);
+    // update on cached
+    this.#repositories = this.#repositories.map((r) =>
+      r.conf.repository_id === repo.conf.repository_id
+        ? {
+          repository_slug: r.repository_slug,
+          conf: new_repo_conf,
+          scripts: r.scripts,
+        }
+        : r
+    );
+  }
 
-		if (!repo) throw new Error('Repository not found');
+  async CacheBranch(repoId: string, branchName: string) {
+    const repo = this.#repositories.find(
+      (r) => r.conf.repository_id === repoId
+    );
 
-		const target_branch_folder = path.join(
-			REPOSITORIES_PATH_IDENTIFIER,
-			repo.repository_slug,
-			'branches',
-			branchName
-		);
+    if (!repo) throw new Error('Repository not found');
 
-		// clear folder if it already exists
-		this.UncacheBranch(repoId, branchName);
+    const target_branch_folder = path.join(
+      REPOSITORIES_PATH_IDENTIFIER,
+      repo.repository_slug,
+      'branches',
+      branchName
+    );
 
-		const clone_command = `git clone -b "${branchName}" "https://x-token-auth:${repo.conf.repository_access_token}@bitbucket.org/${repo.conf.repository_workspace_name}/${repo.conf.repository_name}.git" "${target_branch_folder}"`;
-		const command = exec(clone_command);
+    // clear folder if it already exists
+    this.UncacheBranch(repoId, branchName);
 
-		const clone_success = await new Promise<boolean>((resolve) => {
-			command.on('exit', (code, _) => {
-				if (code !== 0) {
-					resolve(false);
-				} else {
-					resolve(true);
-				}
-			});
-		});
+    const clone_command = `git clone -b "${branchName}" "https://x-token-auth:${repo.conf.repository_access_token}@bitbucket.org/${repo.conf.repository_workspace_name}/${repo.conf.repository_name}.git" "${target_branch_folder}"`;
+    const command = exec(clone_command);
 
-		// clear folder if the clone wasn't successful
-		if (!clone_success) {
-			this.UncacheBranch(repoId, branchName);
-		}
+    const clone_success = await new Promise<boolean>((resolve) => {
+      command.on('exit', (code, _) => {
+        if (code !== 0) {
+          resolve(false);
+        } else {
+          resolve(true);
+        }
+      });
+    });
 
-		return clone_success;
-	}
+    // clear folder if the clone wasn't successful
+    if (!clone_success) {
+      this.UncacheBranch(repoId, branchName);
+    }
 
-	UncacheBranch(repoId: string, branchName: string) {
-		const repo = this.#repositories.find(
-			(r) => r.conf.repository_id === repoId
-		);
+    return clone_success;
+  }
 
-		if (!repo) throw new Error('Repository not found');
+  UncacheBranch(repoId: string, branchName: string) {
+    const repo = this.#repositories.find(
+      (r) => r.conf.repository_id === repoId
+    );
 
-		const target_branch_folder = path.join(
-			REPOSITORIES_PATH_IDENTIFIER,
-			repo.repository_slug,
-			'branches',
-			branchName
-		);
+    if (!repo) throw new Error('Repository not found');
 
-		fs.rmSync(target_branch_folder, {
-			recursive: true,
-			force: true,
-		});
-	}
+    const target_branch_folder = path.join(
+      REPOSITORIES_PATH_IDENTIFIER,
+      repo.repository_slug,
+      'branches',
+      branchName
+    );
 
-	UncacheUnobservedBranches() {
-		const repos = fs
-			.readdirSync(REPOSITORIES_PATH_IDENTIFIER, {
-				withFileTypes: true,
-			})
-			.filter((r) => r.isDirectory());
+    fs.rmSync(target_branch_folder, {
+      recursive: true,
+      force: true,
+    });
+  }
 
-		for (const repo of repos) {
-			const cached_branches = fs
-				.readdirSync(
-					path.join(REPOSITORIES_PATH_IDENTIFIER, repo.name, 'branches'),
-					{
-						withFileTypes: true,
-					}
-				)
-				.filter((c) => c.isDirectory());
+  UncacheUnobservedBranches() {
+    const repos = fs
+      .readdirSync(REPOSITORIES_PATH_IDENTIFIER, {
+        withFileTypes: true,
+      })
+      .filter((r) => r.isDirectory());
 
-			for (const cached_branch of cached_branches) {
-				const r = this.#repositories.find(
-					(r) => r.repository_slug === repo.name
-				);
+    for (const repo of repos) {
+      const cached_branches = fs
+        .readdirSync(
+          path.join(REPOSITORIES_PATH_IDENTIFIER, repo.name, 'branches'),
+          {
+            withFileTypes: true,
+          }
+        )
+        .filter((c) => c.isDirectory());
 
-				if (!r) throw new Error('Repository not found');
+      for (const cached_branch of cached_branches) {
+        const r = this.#repositories.find(
+          (r) => r.repository_slug === repo.name
+        );
 
-				if (
-					!r.conf.observed_branches.find(
-						(o) => o.branch_name === cached_branch.name
-					)
-				) {
-					this.UncacheBranch(r.conf.repository_id, cached_branch.name);
-				}
-			}
-		}
-	}
+        if (!r) throw new Error('Repository not found');
 
-	#GetConfAsSafeObject(repoSlug: string) {
-		const repository_conf_path = this.#GetConfLocationPath(repoSlug);
-		let obj;
+        if (
+          !r.conf.observed_branches.find(
+            (o) => o.branch_name === cached_branch.name
+          )
+        ) {
+          this.UncacheBranch(r.conf.repository_id, cached_branch.name);
+        }
+      }
+    }
+  }
 
-		try {
-			const conf_content = fs
-				.readFileSync(repository_conf_path, {
-					encoding: 'utf-8',
-				})
-				.toString();
+  #GetConfAsSafeObject(repoSlug: string) {
+    const repository_conf_path = this.#GetConfLocationPath(repoSlug);
+    let obj;
 
-			obj = JSON.parse(conf_content);
-		} catch (e) {
-			obj = {};
-		}
+    try {
+      const conf_content = fs
+        .readFileSync(repository_conf_path, {
+          encoding: 'utf-8',
+        })
+        .toString();
 
-		return RepositoryConfSchema.safeParse(obj);
-	}
+      obj = JSON.parse(conf_content);
+    } catch (e) {
+      obj = {};
+    }
 
-	#GetConfLocationPath(repoSlug: string) {
-		return path.join(
-			REPOSITORIES_PATH_IDENTIFIER,
-			repoSlug,
-			CONFIGURATION_FILE_IDENTIFIER
-		);
-	}
+    return RepositoryConfSchema.safeParse(obj);
+  }
 
-	#PulseRepositories() {
-		const signals: RepositoryPulseSignal[] = [];
+  #GetConfLocationPath(repoSlug: string) {
+    return path.join(
+      REPOSITORIES_PATH_IDENTIFIER,
+      repoSlug,
+      CONFIGURATION_FILE_IDENTIFIER
+    );
+  }
 
-		if (!fs.existsSync(REPOSITORIES_PATH_IDENTIFIER)) {
-			fs.mkdirSync(REPOSITORIES_PATH_IDENTIFIER, {
-				recursive: true,
-			});
+  #PulseRepositories() {
+    const signals: RepositoryPulseSignal[] = [];
 
-			return signals;
-		}
+    if (!fs.existsSync(REPOSITORIES_PATH_IDENTIFIER)) {
+      fs.mkdirSync(REPOSITORIES_PATH_IDENTIFIER, {
+        recursive: true,
+      });
 
-		const repos_slug = fs.readdirSync(REPOSITORIES_PATH_IDENTIFIER, {
-			withFileTypes: true,
-		});
+      return signals;
+    }
 
-		repos_slug.forEach((repo) => {
-			if (repo.isFile()) return;
+    const repos_slug = fs.readdirSync(REPOSITORIES_PATH_IDENTIFIER, {
+      withFileTypes: true,
+    });
 
-			const safe_conf_content = this.#GetConfAsSafeObject(repo.name);
+    repos_slug.forEach((repo) => {
+      if (repo.isFile()) return;
 
-			if (safe_conf_content.success) {
-				signals.push({
-					repository_slug: repo.name,
-					conf: safe_conf_content.data,
-				});
-			}
-		});
+      const safe_conf_content = this.#GetConfAsSafeObject(repo.name);
+      const repo_scripts = fs
+        .readdirSync(
+          path.join(REPOSITORIES_PATH_IDENTIFIER, repo.name, 'scripts'),
+          {
+            withFileTypes: true,
+          }
+        )
+        .filter((s) => s.isFile())
+        .map((s) => s.name.split('.').at(0) || s.name);
 
-		return signals;
-	}
+      if (safe_conf_content.success) {
+        signals.push({
+          repository_slug: repo.name,
+          conf: safe_conf_content.data,
+          scripts: repo_scripts,
+        });
+      }
+    });
+
+    return signals;
+  }
 }
