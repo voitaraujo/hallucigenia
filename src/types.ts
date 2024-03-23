@@ -17,8 +17,3 @@ export type menu =
 	| 'check branches'
 	| 'quit';
 
-export interface RepositoryPulseSignal {
-	repository_slug: string;
-	conf: RepositoryConf;
-  scripts: string[]
-}

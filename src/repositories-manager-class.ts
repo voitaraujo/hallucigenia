@@ -4,14 +4,15 @@ import fs from 'fs';
 import path from 'path';
 
 import {
+  APP_PATH_IDENTIFIER,
   CONFIGURATION_FILE_IDENTIFIER,
   REPOSITORIES_PATH_IDENTIFIER,
 } from './constants';
 import { RepositoryConfSchema } from './schemas';
-import { RepositoryConf, RepositoryPulseSignal } from './types';
+import { RepositoryConf } from './types';
 
 export class RepositoriesManager {
-  #repositories;
+  #repositories: Repository[];
 
   constructor() {
     this.#repositories = this.#PulseRepositories();
@@ -22,25 +23,105 @@ export class RepositoriesManager {
   }
 
   GetRepo(id: string) {
-    const t = this.#repositories.find((r) => r.conf.repository_id === id);
+    const repo = this.#repositories.find((r) => r.GetRepositoryId() === id);
 
-    if (!t) throw new Error('Repository not found');
+    if (!repo) throw new Error('Repository not found');
 
-    return t;
+    return repo;
   }
 
   SyncRepos() {
     this.#repositories = this.#PulseRepositories();
   }
 
-  AttachRepository(
+  UncacheUnobservedBranches() {
+    for (const repo of this.#repositories) {
+      const cached_branches = fs
+        .readdirSync(
+          path.join(REPOSITORIES_PATH_IDENTIFIER, repo.GetRepositorySlug(), 'branches'),
+          {
+            withFileTypes: true,
+          }
+        )
+        .filter((c) => c.isDirectory());
+
+      for (const cb of cached_branches) {
+        if (!repo.GetRepositoryConf().observed_branches.find(ob => ob.branch_name === cb.name)) {
+          repo.UncacheBranch(cb.name)
+        }
+      }
+    }
+  }
+
+  #PulseRepositories() {
+    const repos: Repository[] = [];
+
+    this.#EnsureHallucigeniaFolderExists()
+    this.#EnsureRepositoriesFolderExists()
+
+    const repos_slug = fs.readdirSync(REPOSITORIES_PATH_IDENTIFIER, {
+      withFileTypes: true,
+    }).filter(r => r.isDirectory());
+
+    repos_slug.forEach((repo) => {
+      this.#EnsureRepositoryFoldersExists(repo.name);
+
+      try {
+        repos.push(new Repository(repo.name))
+      } catch (err: any) {
+        // TODO: write the err to some log
+      }
+    });
+
+    return repos;
+  }
+
+  #EnsureHallucigeniaFolderExists() {
+    fs.mkdirSync(APP_PATH_IDENTIFIER, {
+      recursive: true,
+    });
+  }
+
+  #EnsureRepositoriesFolderExists() {
+    fs.mkdirSync(REPOSITORIES_PATH_IDENTIFIER, {
+      recursive: true,
+    });
+  }
+
+  #EnsureRepositoryFoldersExists(repoSlug: string) {
+    fs.mkdirSync(path.join(REPOSITORIES_PATH_IDENTIFIER, repoSlug, 'branches'), {
+      recursive: true,
+    });
+
+    fs.mkdirSync(path.join(REPOSITORIES_PATH_IDENTIFIER, repoSlug, 'tmp'), {
+      recursive: true,
+    });
+
+    fs.mkdirSync(path.join(REPOSITORIES_PATH_IDENTIFIER, repoSlug, 'scripts'), {
+      recursive: true,
+    });
+
+    fs.mkdirSync(path.join(REPOSITORIES_PATH_IDENTIFIER, repoSlug, 'logs'), {
+      recursive: true,
+    });
+  }
+}
+
+export class Repository {
+  #repository_slug: string
+
+  constructor(slug: string) {
+    this.#repository_slug = slug
+  }
+
+  static AttachRepository(
+    repository_slug: string,
     newRepoConfParts: Pick<
       RepositoryConf,
       | 'repository_workspace_name'
       | 'repository_name'
       | 'repository_access_token'
-    >,
-    newRepoSlug: string
+    >
   ) {
     const id = randomUUID();
 
@@ -52,92 +133,118 @@ export class RepositoriesManager {
       remote_connection_status: 'ok',
     } satisfies RepositoryConf);
 
-    if (safe_conf_content.success) {
+    if (!safe_conf_content.success)
+      throw new Error('Invalid repository .conf');
 
+    fs.mkdirSync(path.join(
+      REPOSITORIES_PATH_IDENTIFIER, repository_slug
+    ), {
+      recursive: true,
+    })
 
-      fs.writeFileSync(path.join(
-        REPOSITORIES_PATH_IDENTIFIER, newRepoSlug, CONFIGURATION_FILE_IDENTIFIER),
-        JSON.stringify(safe_conf_content.data),
-        {
-          encoding: 'utf-8',
-        }
-      );
-
-      return id;
-    }
-
-    throw new Error('Invalid repository .conf');
-  }
-
-  DettachRepository(repoId: string) {
-    const to_delete = this.#repositories.find(r => r.conf.repository_id === repoId)
-
-    if (!!to_delete) {
-      fs.rmSync(path.join(REPOSITORIES_PATH_IDENTIFIER, to_delete.repository_slug), {
-        recursive: true,
-        force: true,
-      });
-    }
-  }
-
-  UpdateRepository(
-    repoId: string,
-    updatedRepositoryConf: Partial<Omit<RepositoryConf, 'repository_id'>>
-  ) {
-    const repo = this.#repositories.find(
-      (r) => r.conf.repository_id === repoId
+    fs.writeFileSync(path.join(
+      REPOSITORIES_PATH_IDENTIFIER, repository_slug, CONFIGURATION_FILE_IDENTIFIER),
+      JSON.stringify(safe_conf_content.data),
+      {
+        encoding: 'utf-8',
+      }
     );
 
-    if (!repo) throw new Error('Repository not found');
+    return id;
+  }
 
-    const safe_conf_content = this.#GetConfAsSafeObject(repo.repository_slug);
+  DettachRepository() {
+    fs.rmSync(path.join(REPOSITORIES_PATH_IDENTIFIER, this.#repository_slug), {
+      recursive: true,
+      force: true,
+    });
+  }
 
-    if (!safe_conf_content.success)
-      throw new Error("can't find .conf file to update");
-    if (repo.conf.repository_id !== safe_conf_content.data.repository_id)
-      throw new Error(".conf id's from cache and disk don't match");
+  GetRepositoryId() {
+    return this.GetRepositoryConf().repository_id
+  }
 
+  GetRepositorySlug() {
+    return this.#repository_slug
+  }
+
+  GetRepositoryConf() {
+    const safe_conf_content = this.#GetConfAsSafeObject(this.#repository_slug);
+
+    if (!safe_conf_content.success) {
+      throw new Error(`Failed to create the Repository class to "${this.#repository_slug}"`)
+    }
+
+    return safe_conf_content.data
+  }
+
+  UpdateRepositoryConf(
+    updatedRepositoryConf: Partial<Omit<RepositoryConf, 'repository_id'>>
+  ) {
     const new_repo_conf = {
-      ...repo.conf,
+      ...this.GetRepositoryConf(),
       ...updatedRepositoryConf,
     };
 
     // update on fs
     fs.writeFileSync(
-      this.#GetConfLocationPath(repo.repository_slug),
+      this.#GetConfLocationPath(this.#repository_slug),
       JSON.stringify(new_repo_conf)
-    );
-
-    // update on cached
-    this.#repositories = this.#repositories.map((r) =>
-      r.conf.repository_id === repo.conf.repository_id
-        ? {
-          repository_slug: r.repository_slug,
-          conf: new_repo_conf,
-          scripts: r.scripts,
-        }
-        : r
     );
   }
 
-  async CacheBranch(repoId: string, branchName: string) {
-    const repo = this.#repositories.find(
-      (r) => r.conf.repository_id === repoId
-    );
+  GetRepositoryScriptList() {
+    const repo_scripts = fs
+      .readdirSync(
+        path.join(REPOSITORIES_PATH_IDENTIFIER, this.#repository_slug, 'scripts'),
+        {
+          withFileTypes: true,
+        }
+      )
+      .filter((s) => s.isFile() && s.name.endsWith('.txt'))
+      .map((s) => s.name.split('.').at(0)!);
 
-    if (!repo) throw new Error('Repository not found');
+    return repo_scripts
+  }
 
+  GetRepositoryScriptContent(scriptName: string) {
+    try {
+      return fs.readFileSync(path.join(REPOSITORIES_PATH_IDENTIFIER, this.#repository_slug, 'scripts', `${scriptName}.txt`), {
+        encoding: 'utf8'
+      })
+    } catch (err) {
+      return undefined
+    }
+  }
+
+  CreateRepositoryScript(scriptName: string, newScriptContent: string) {
+    fs.writeFileSync(path.join(REPOSITORIES_PATH_IDENTIFIER, this.#repository_slug, 'scripts', `${scriptName}.txt`), newScriptContent, { encoding: 'utf8' })
+  }
+
+  DeleteRepositoryScript(scriptName: string) {
+    fs.rmSync(path.join(REPOSITORIES_PATH_IDENTIFIER, this.#repository_slug, 'scripts', `${scriptName}.txt`), {
+      recursive: true,
+      force: true
+    })
+  }
+
+  UpdateRepositoryScript(scriptName: string, updatedScriptContent: string) {
+    fs.writeFileSync(path.join(REPOSITORIES_PATH_IDENTIFIER, this.#repository_slug, 'scripts', `${scriptName}.txt`), updatedScriptContent, { encoding: 'utf8' })
+  }
+
+  async CacheBranch(branchName: string) {
+    const repository_conf = this.GetRepositoryConf()
     const target_branch_folder = path.join(
       REPOSITORIES_PATH_IDENTIFIER,
-      repo.repository_slug,
+      this.#repository_slug,
       'branches',
       branchName
     );
 
     // clear folder if it already exists
-    this.UncacheBranch(repoId, branchName);
+    this.UncacheBranch(branchName);
 
-    const clone_command = `git clone -b "${branchName}" "https://x-token-auth:${repo.conf.repository_access_token}@bitbucket.org/${repo.conf.repository_workspace_name}/${repo.conf.repository_name}.git" "${target_branch_folder}"`;
+    const clone_command = `git clone -b "${branchName}" "https://x-token-auth:${repository_conf.repository_access_token}@bitbucket.org/${repository_conf.repository_workspace_name}/${repository_conf.repository_name}.git" "${target_branch_folder}"`;
     const command = exec(clone_command);
 
     const clone_success = await new Promise<boolean>((resolve) => {
@@ -152,22 +259,16 @@ export class RepositoriesManager {
 
     // clear folder if the clone wasn't successful
     if (!clone_success) {
-      this.UncacheBranch(repoId, branchName);
+      this.UncacheBranch(branchName);
     }
 
     return clone_success;
   }
 
-  UncacheBranch(repoId: string, branchName: string) {
-    const repo = this.#repositories.find(
-      (r) => r.conf.repository_id === repoId
-    );
-
-    if (!repo) throw new Error('Repository not found');
-
+  UncacheBranch(branchName: string) {
     const target_branch_folder = path.join(
       REPOSITORIES_PATH_IDENTIFIER,
-      repo.repository_slug,
+      this.#repository_slug,
       'branches',
       branchName
     );
@@ -176,41 +277,6 @@ export class RepositoriesManager {
       recursive: true,
       force: true,
     });
-  }
-
-  UncacheUnobservedBranches() {
-    const repos = fs
-      .readdirSync(REPOSITORIES_PATH_IDENTIFIER, {
-        withFileTypes: true,
-      })
-      .filter((r) => r.isDirectory());
-
-    for (const repo of repos) {
-      const cached_branches = fs
-        .readdirSync(
-          path.join(REPOSITORIES_PATH_IDENTIFIER, repo.name, 'branches'),
-          {
-            withFileTypes: true,
-          }
-        )
-        .filter((c) => c.isDirectory());
-
-      for (const cached_branch of cached_branches) {
-        const r = this.#repositories.find(
-          (r) => r.repository_slug === repo.name
-        );
-
-        if (!r) throw new Error('Repository not found');
-
-        if (
-          !r.conf.observed_branches.find(
-            (o) => o.branch_name === cached_branch.name
-          )
-        ) {
-          this.UncacheBranch(r.conf.repository_id, cached_branch.name);
-        }
-      }
-    }
   }
 
   #GetConfAsSafeObject(repoSlug: string) {
@@ -239,61 +305,5 @@ export class RepositoriesManager {
       CONFIGURATION_FILE_IDENTIFIER
     );
   }
-
-  #PulseRepositories() {
-    const signals: RepositoryPulseSignal[] = [];
-
-    if (!fs.existsSync(REPOSITORIES_PATH_IDENTIFIER)) {
-      fs.mkdirSync(REPOSITORIES_PATH_IDENTIFIER, {
-        recursive: true,
-      });
-
-      return signals;
-    }
-
-    const repos_slug = fs.readdirSync(REPOSITORIES_PATH_IDENTIFIER, {
-      withFileTypes: true,
-    });
-
-    repos_slug.forEach((repo) => {
-      if (repo.isFile()) return;
-
-      const safe_conf_content = this.#GetConfAsSafeObject(repo.name);
-      this.#EnsureRepositoryFoldersExists(repo.name);
-
-      const repo_scripts = fs
-        .readdirSync(
-          path.join(REPOSITORIES_PATH_IDENTIFIER, repo.name, 'scripts'),
-          {
-            withFileTypes: true,
-          }
-        )
-        .filter((s) => s.isFile())
-        .map((s) => s.name.split('.').at(0) || s.name);
-
-      if (safe_conf_content.success) {
-        signals.push({
-          repository_slug: repo.name,
-          conf: safe_conf_content.data,
-          scripts: repo_scripts,
-        });
-      }
-    });
-
-    return signals;
-  }
-
-  #EnsureRepositoryFoldersExists(repoSlug: string) {
-    fs.mkdirSync(path.join(REPOSITORIES_PATH_IDENTIFIER, repoSlug, 'branches'), {
-      recursive: true,
-    });
-
-    fs.mkdirSync(path.join(REPOSITORIES_PATH_IDENTIFIER, repoSlug, 'tmp'), {
-      recursive: true,
-    });
-
-    fs.mkdirSync(path.join(REPOSITORIES_PATH_IDENTIFIER, repoSlug, 'scripts'), {
-      recursive: true,
-    });
-  }
 }
+

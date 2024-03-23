@@ -16,7 +16,7 @@ import ora from 'ora';
 import { HallucigeniaState } from './app-state-class';
 import { FetchRepository, FetchRepositoryBranches } from './bitbucket-conn';
 import { SPINNER_CONFIGURATION } from './constants';
-import { RepositoriesManager } from './repositories-manager-class';
+import { RepositoriesManager, Repository } from './repositories-manager-class';
 import { menu } from './types';
 import { Sleep } from './utils';
 import { GetValidatorFunction } from './validators';
@@ -25,12 +25,12 @@ const APP_STATE = new HallucigeniaState();
 const REPOSITORIES = new RepositoriesManager();
 
 async function main() {
-  // just... don't...
   // WatchRepositoryConfFiles(async (_) => {
-  // 	REPOSITORIES.SyncRepos();
-  //	await view();
+  // REPOSITORIES.SyncRepos();
+  // await view();
   // });
 
+  REPOSITORIES.SyncRepos();
   await view();
 }
 
@@ -85,7 +85,7 @@ const MENU: {
     const o = ora('watching branches for changes...(ctrl+c to stop)').start();
 
     const obsrv = REPOSITORIES.GetRepos().filter(
-      (r) => r.conf.remote_connection_status === 'ok'
+      (r) => r.GetRepositoryConf().remote_connection_status === 'ok'
     );
 
     // !be cautious with this bc bitbucket has a rate limit on API requests and git operations as well ~> https://support.atlassian.com/bitbucket-cloud/docs/api-request-limits/
@@ -101,9 +101,9 @@ const MENU: {
       Promise.allSettled(
         obsrv.map((r) =>
           FetchRepositoryBranches({
-            repository_access_token: r.conf.repository_access_token,
-            repository_name: r.conf.repository_name,
-            repository_workspace_name: r.conf.repository_workspace_name,
+            repository_access_token: r.GetRepositoryConf().repository_access_token,
+            repository_name: r.GetRepositoryConf().repository_name,
+            repository_workspace_name: r.GetRepositoryConf().repository_workspace_name,
           })
         )
       ).then((remote_branches_info) => {
@@ -116,12 +116,12 @@ const MENU: {
 
           if (res.status === 'rejected') return;
 
-          for (const o of obs.conf.observed_branches) {
+          for (const o of obs.GetRepositoryConf().observed_branches) {
             const found = res.value.find((b) => b.name === o.branch_name);
 
             if (found && found.target.hash !== o.hash) {
               reduced_branches_to_clone.push({
-                repo_id: obs.conf.repository_id,
+                repo_id: obs.GetRepositoryConf().repository_id,
                 branch_name: o.branch_name,
                 branch_hash: found.target.hash,
               });
@@ -139,18 +139,15 @@ const MENU: {
       const target_repo = REPOSITORIES.GetRepo(to_clone.repo_id);
 
       const anim = ora(
-        `cloning branch "${to_clone.branch_name}" of "${target_repo.conf.repository_name}"`
+        `cloning branch "${to_clone.branch_name}" of "${target_repo.GetRepositoryConf().repository_name}"`
       ).start();
 
-      const success = await REPOSITORIES.CacheBranch(
-        to_clone.repo_id,
-        to_clone.branch_name
-      );
+      const success = await target_repo.CacheBranch(to_clone.branch_name)
 
       if (success) {
-        REPOSITORIES.UpdateRepository(to_clone.repo_id, {
+        target_repo.UpdateRepositoryConf({
           observed_branches: [
-            ...target_repo.conf.observed_branches.filter(
+            ...target_repo.GetRepositoryConf().observed_branches.filter(
               (b) => b.branch_name !== to_clone.branch_name
             ),
             {
@@ -159,10 +156,10 @@ const MENU: {
             },
           ],
         });
-        anim.text = `branch "${to_clone.branch_name}" of "${target_repo.conf.repository_name}" cloned successfully`;
+        anim.text = `branch "${to_clone.branch_name}" of "${target_repo.GetRepositoryConf().repository_name}" cloned successfully`;
         anim.succeed();
       } else {
-        anim.text = `failed to clone branch "${to_clone.branch_name}" of "${target_repo.conf.repository_name}"`;
+        anim.text = `failed to clone branch "${to_clone.branch_name}" of "${target_repo.GetRepositoryConf().repository_name}"`;
         anim.fail();
       }
     }
@@ -211,10 +208,14 @@ const MENU: {
         new Separator(
           '───────────────────────────────────────────────────────'
         ),
-        ...REPOSITORIES.GetRepos().map((signal) => ({
-          name: `${signal.repository_slug} ${signal.conf.remote_connection_status === 'ok' ? chalk.green('(connected)') : chalk.red('(no connection)')}`,
-          value: `id_${signal.conf.repository_id}` as const,
-        })),
+        ...REPOSITORIES.GetRepos().map((repo) => {
+          const conf = repo.GetRepositoryConf()
+
+          return {
+            name: `${repo.GetRepositorySlug()} ${conf.remote_connection_status === 'ok' ? chalk.green('(connected)') : chalk.red('(no connection)')}`,
+            value: `id_${conf.repository_id}` as const,
+          }
+        }),
       ],
     });
 
@@ -240,7 +241,7 @@ const MENU: {
             repository_workspace_name: repository_workspace_name,
             repository_name: value,
           },
-          REPOSITORIES.GetRepos()
+          REPOSITORIES.GetRepos().map(repo => repo.GetRepositoryConf())
         );
       },
     });
@@ -260,31 +261,33 @@ const MENU: {
         spinner: SPINNER_CONFIGURATION,
       },
     });
-    const project_slug = await input({
+    const repository_slug = await input({
       message: 'repository alias: ',
       default: repository_name,
       validate: (value) => {
         const v = GetValidatorFunction('bitbucket', 'slug');
 
-        return v(value, REPOSITORIES.GetRepos());
+        return v(value, REPOSITORIES.GetRepos().map(repo => repo.GetRepositorySlug()));
       },
     });
 
-    const created_repo_id = REPOSITORIES.AttachRepository(
+    Repository.AttachRepository(
+      repository_slug,
       {
         repository_access_token,
         repository_name,
         repository_workspace_name,
       },
-      project_slug
     );
 
-    APP_STATE.setMenu('check branches', created_repo_id);
+    APP_STATE.setMenu('repositories', null);
   },
   'repository options': async () => {
+    const target_repo = REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId())
+
     console.log(
       chalk.bgCyanBright(
-        ` DETAILS ~> [ ${REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId()).repository_slug} ] \n`
+        ` DETAILS ~> [ ${target_repo.GetRepositorySlug()} ] \n`
       )
     );
 
@@ -304,13 +307,13 @@ const MENU: {
           '───────────────────────────────────────────────────────'
         ),
         {
-          name: `Observable branches [${REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId()).conf.observed_branches.length}/${REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId()).conf.branches.length}]`,
+          name: `Observable branches [${target_repo.GetRepositoryConf().observed_branches.length}/${target_repo.GetRepositoryConf().branches.length}]`,
           value: 'branches',
           description: 'List & select branches from repository to be observed',
         },
 
         {
-          name: `Side Effects [${REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId()).conf.observed_branches.filter((ob) => REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId()).scripts.includes(ob.branch_name)).length}/${REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId()).conf.observed_branches.length}]`,
+          name: `Side Effects [${target_repo.GetRepositoryConf().observed_branches.filter((ob) => target_repo.GetRepositoryScriptList().includes(ob.branch_name)).length}/${target_repo.GetRepositoryConf().observed_branches.length}]`,
           value: 'side effects',
           description: 'instructions to run when branches get updated',
         },
@@ -324,9 +327,11 @@ const MENU: {
     APP_STATE.setMenu(repository_answer, APP_STATE.getTargetRepositoryId());
   },
   'delete repository': async () => {
+    const target_repo = REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId())
+
     console.log(
       chalk.bgCyanBright(
-        ` DELETE ~> [ ${REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId()).repository_slug} ] \n`
+        ` DELETE ~> [ ${target_repo.GetRepositorySlug()} ] \n`
       )
     );
 
@@ -337,40 +342,34 @@ const MENU: {
     });
 
     if (id_delete_answer) {
-      REPOSITORIES.DettachRepository(
-        REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId()).repository_slug
-      );
+      target_repo.DettachRepository()
       APP_STATE.setMenu('repositories', null);
-    } else {
-      APP_STATE.setMenu(
-        'repository options',
-        APP_STATE.getTargetRepositoryId()
-      );
+      return
     }
+
+    APP_STATE.setMenu(
+      'repository options',
+      APP_STATE.getTargetRepositoryId()
+    );
   },
   branches: async () => {
+    const target_repo = REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId())
+    const { branches: target_repo_branches, observed_branches: target_repo_observed_branches } = target_repo.GetRepositoryConf()
+
     console.log(
       chalk.bgCyanBright(
-        ` OBSERVABLE BRANCHES ~> [ ${REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId()).repository_slug} ] \n`
+        ` OBSERVABLE BRANCHES ~> [ ${target_repo.GetRepositorySlug()} ] \n`
       )
     );
 
-    const branches_already_selected = REPOSITORIES.GetRepo(
-      APP_STATE.getTargetRepositoryId()
-    ).conf.branches.filter(
+    const branches_already_selected = target_repo_branches.filter(
       (b) =>
-        !!REPOSITORIES.GetRepo(
-          APP_STATE.getTargetRepositoryId()
-        ).conf.observed_branches.find((bb) => bb.branch_name === b.branch_name)
+        !!target_repo_observed_branches.find((bb) => bb.branch_name === b.branch_name)
     );
 
-    const branches_not_selected = REPOSITORIES.GetRepo(
-      APP_STATE.getTargetRepositoryId()
-    ).conf.branches.filter(
+    const branches_not_selected = target_repo_branches.filter(
       (b) =>
-        !REPOSITORIES.GetRepo(
-          APP_STATE.getTargetRepositoryId()
-        ).conf.observed_branches.find((bb) => bb.branch_name === b.branch_name)
+        !target_repo_observed_branches.find((bb) => bb.branch_name === b.branch_name)
     );
 
     const branch_list_answer = await checkbox({
@@ -390,9 +389,7 @@ const MENU: {
       loop: false,
     });
 
-    REPOSITORIES.UpdateRepository(
-      REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId()).conf
-        .repository_id,
+    target_repo.UpdateRepositoryConf(
       {
         observed_branches: branch_list_answer.map((bn) => ({
           branch_name: bn,
@@ -414,19 +411,21 @@ const MENU: {
       text: `checking connection to ${REPOSITORIES.GetRepos().length} repositories`,
     }).start();
 
-    for (const signal of REPOSITORIES.GetRepos()) {
+    for (const repository of REPOSITORIES.GetRepos()) {
+      const conf = repository.GetRepositoryConf()
+
       try {
         await FetchRepository({
-          repository_access_token: signal.conf.repository_access_token,
-          repository_workspace_name: signal.conf.repository_workspace_name,
-          repository_name: signal.conf.repository_name,
+          repository_access_token: conf.repository_access_token,
+          repository_workspace_name: conf.repository_workspace_name,
+          repository_name: conf.repository_name,
         });
 
-        REPOSITORIES.UpdateRepository(signal.conf.repository_id, {
+        repository.UpdateRepositoryConf({
           remote_connection_status: 'ok',
         });
       } catch (err) {
-        REPOSITORIES.UpdateRepository(signal.conf.repository_id, {
+        repository.UpdateRepositoryConf({
           remote_connection_status: 'ko',
         });
       }
@@ -439,32 +438,34 @@ const MENU: {
     APP_STATE.setMenu('repositories', null);
   },
   'check branches': async () => {
-    const signal = REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId());
+    const target_repo = REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId());
+    const target_repo_conf = target_repo.GetRepositoryConf()
+
     console.log(
       chalk.bgCyanBright(
-        ` UPDATING BRANCH LIST ~> [ ${signal.repository_slug} ] \n`
+        ` UPDATING BRANCH LIST ~> [ ${target_repo.GetRepositorySlug()} ] \n`
       )
     );
 
     const sync_animation_branch = ora({
-      text: `updating local branch list from remote "${signal.conf.repository_name}"`,
+      text: `updating local branch list from remote "${target_repo_conf.repository_name}"`,
     }).start();
 
     try {
       const branches = await FetchRepositoryBranches({
-        repository_access_token: signal.conf.repository_access_token,
-        repository_workspace_name: signal.conf.repository_workspace_name,
-        repository_name: signal.conf.repository_name,
+        repository_access_token: target_repo_conf.repository_access_token,
+        repository_workspace_name: target_repo_conf.repository_workspace_name,
+        repository_name: target_repo_conf.repository_name,
       });
 
-      REPOSITORIES.UpdateRepository(APP_STATE.getTargetRepositoryId(), {
+      target_repo.UpdateRepositoryConf({
         branches: branches.map((b) => ({
           branch_name: b.name,
           hash: b.target.hash,
         })),
       });
     } catch (err) {
-      REPOSITORIES.UpdateRepository(APP_STATE.getTargetRepositoryId(), {
+      target_repo.UpdateRepositoryConf({
         branches: [],
       });
     }
@@ -476,13 +477,17 @@ const MENU: {
     APP_STATE.setMenu('repository options', APP_STATE.getTargetRepositoryId());
   },
   'side effects': async () => {
+    const target_repo = REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId())
+    const target_repo_conf = target_repo.GetRepositoryConf()
+    const target_repo_script_list = target_repo.GetRepositoryScriptList()
+
     console.log(
       chalk.bgCyanBright(
-        ` SIDE EFFECTS ~> [ ${REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId()).repository_slug} ] \n`
+        ` SIDE EFFECTS ~> [ ${target_repo.GetRepositorySlug()} ] \n`
       )
     );
 
-    const answer = await select<menu | 'create script' | `branch_${string}`>({
+    const answer = await select<menu | 'default script' | `branch_${string}`>({
       message: '',
       loop: false,
       choices: [
@@ -491,41 +496,48 @@ const MENU: {
           value: 'repository options',
         },
         {
-          name: chalk.blue('+ default script'), // se já existir um script mudar essa legenda
-          value: 'create script',
+          name: `default script [${target_repo_script_list.includes(target_repo_conf.repository_name) ? chalk.green("set") : chalk.red('not set')}]`, // se já existir um script mudar essa legenda
+          value: 'default script',
           description:
             "This script will run for updated branches that don't have an specific one",
         },
         new Separator(
           '───────────────────────────────────────────────────────'
         ),
-        ...REPOSITORIES.GetRepo(
-          APP_STATE.getTargetRepositoryId()
-        ).conf.observed_branches.map((branch) => ({
-          name: `branch "${branch.branch_name}" [${REPOSITORIES.GetRepo(APP_STATE.getTargetRepositoryId()).scripts.includes(branch.branch_name) ? chalk.green("script set") : chalk.red('script not set')}]`,
+        ...target_repo_conf.observed_branches.map((branch) => ({
+          name: `branch "${branch.branch_name}" script [${target_repo_script_list.includes(branch.branch_name) ? chalk.green("set") : chalk.red('not set')}]`,
           value: `branch_${branch.branch_name}` as const,
         })),
       ],
     });
 
-    if (answer === 'create script' || answer.startsWith('branch_')) {
-      let script = await editor({
+    if (answer.startsWith('branch_') || answer === 'default script') {
+      const b_name = answer.replace('branch_', '').replace('default script', target_repo_conf.repository_name)
+      const saved_script_content = target_repo.GetRepositoryScriptContent(b_name)
+
+
+      const script = await editor({
         message: '',
         waitForUseInput: false,
-        default: `  -- 1- This script will run when ${answer.startsWith('branch_') ? `the branch "${answer.replace('branch_', '')}" gets updated` : 'ANY branch of the repository(without specific script) is updated'}
-	-- 2- The path to the updated branch will be exposed as the variable "SOURCE_PATH" during this script execution
-	-- 3- Make sure this script is compatible with the platform it will be executed
-	-- 4- When you finish writing it, just save and close you editor to go back to Hallucigenia
-
-	- - - - - - - - - - WRITE BELLOW THIS LINE, EVERYTHING ABOVE IT WILL BE DELETED - - - - - - - - - -`,
+        default: saved_script_content || '',
       });
 
-      // remove the instructions
-      script = script.split('\n').slice(6).join('\n');
-      console.log(script);
-
-      // save the script
-      await Sleep(2000);
+      switch (true) {
+        case script.trim().length === 0 && typeof saved_script_content === 'string':
+          // delete existing script
+          target_repo.DeleteRepositoryScript(b_name)
+          break;
+        case script.trim().length !== 0 && typeof saved_script_content === 'string':
+          // update existing script
+          target_repo.UpdateRepositoryScript(b_name, script)
+          break
+        case script.trim().length !== 0 && typeof saved_script_content === 'undefined':
+          // create new script
+          target_repo.CreateRepositoryScript(b_name, script)
+          break
+        default:
+          break;
+      }
       return;
     }
 
