@@ -1,7 +1,10 @@
-> _scuffed CLI for tracking updates to repository branches on bitbucket_
+![hllcgn](https://github.com/voitaraujo/hallucigenia/assets/36885540/ee48c7d2-34e5-4b51-8d50-3e86910d9b1c)
+
+
+# Hallucigenia
 
 - Register your BitBucket repositories; <br>
-- Mark the Branches to be observed; <br>
+- Mark branches to be observed; <br>
 - Run scripts when any of them are updated; <br>
 
 ### dependencies
