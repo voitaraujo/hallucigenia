@@ -19,7 +19,7 @@ async function WatchRepositoryConfFiles(
 			 * - "repositories/test/.conf"
 			 *
 			 * we want to make sure our search for .conf files don't
-			 * exclude those previos paths, and also make sure the
+			 * exclude those previous paths, and also make sure the
 			 * only file being validated is the .conf file.
 			 */
 

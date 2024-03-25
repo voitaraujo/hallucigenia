@@ -13,7 +13,7 @@
 		"module": "ESNext",
 		"noEmit": true,
 		"lib": ["es2022"],
-		"allowImportingTsExtensions": true,
+		// "allowImportingTsExtensions": true,
 		"composite": true,
 		"downlevelIteration": true,
 		"allowSyntheticDefaultImports": true,

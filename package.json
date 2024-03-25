@@ -1,16 +1,16 @@
 {
 	"name": "hallucigenia",
 	"type": "module",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"bin": {
 		"hallucigenia": "./dist/hallucigenia.js"
 	},
-	"author": "Voitila Araujo",
+	"author": "Voitila Araujo<voitilaaraujo@gmail.com>",
 	"scripts": {
 		"build:ncc": "ncc build src/hallucigenia.ts -o dist/hallucigenia --minify",
 		"build:esbuild": "esbuild --bundle src/hallucigenia.ts --platform=node --outfile=dist/hallucigenia.js --packages=external --format=esm --minify",
-		"link-cli-osx": "pnpm --global unlink hallucigenia && chmod +x ./dist/hallucigenia.js && pnpm --global link",
-		"link-cli-win": "pnpm --global unlink hallucigenia && pnpm --global link",
+		"link-cli:osx": "pnpm --global unlink hallucigenia && chmod +x ./dist/hallucigenia.js && pnpm --global link",
+		"link-cli:win": "pnpm --global unlink hallucigenia && pnpm --global link",
 		"prettier:check": "prettier --check .",
 		"prettier": "prettier --write .",
 		"lint:check": "eslint .",
