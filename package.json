@@ -27,10 +27,7 @@
 		"@types/node": "^20.11.25",
 		"@typescript-eslint/eslint-plugin": "^7.1.1",
 		"@typescript-eslint/parser": "^7.1.1",
-		"@vercel/ncc": "^0.38.1",
-		"esbuild": "^0.20.1",
 		"eslint": "^8.57.0",
-		"pkg": "^5.8.1",
 		"prettier": "^3.2.5",
 		"typescript": "^5.0.0",
 		"typescript-eslint": "^7.1.1"
