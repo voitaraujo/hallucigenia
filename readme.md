@@ -6,13 +6,19 @@
 - Mark branches to be observed; <br>
 - Run scripts when any of them are updated; <br>
 
-### dependencies
+### usage dependencies
 
-- git
+- [git](https://git-scm.com/)
+
+### dev dependencies
+
+- [esbuild](https://github.com/evanw/esbuild) and/or [ncc](https://github.com/vercel/ncc)
 
 ### WIP
 
 [TODO] Encrypt data on .conf files<br>
 [TODO] Make the "watching" feature a independent process<br>
-[REEVALUATING] Use chokidar to monitor & update the app state when any file inside "repositories" change<br>
+
+<!-- [REEVALUATING] Use chokidar to monitor & update the app state when any file inside "repositories" change<br> -->
+
 [IN PROGRESS] Fix grammar<br>
