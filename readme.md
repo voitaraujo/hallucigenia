@@ -1,6 +1,5 @@
 ![hllcgn](https://github.com/voitaraujo/hallucigenia/assets/36885540/ee48c7d2-34e5-4b51-8d50-3e86910d9b1c)
 
-
 # Hallucigenia
 
 - Register your BitBucket repositories; <br>

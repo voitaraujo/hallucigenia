@@ -16,7 +16,8 @@ import ora from 'ora';
 import { FetchRepository, FetchRepositoryBranches } from './bitbucket-conn';
 import { SPINNER_CONFIGURATION } from './constants';
 import { HallucigeniaState } from './hallucigenia-state-class';
-import { RepositoriesManager, Repository } from './repositories-manager-class';
+import { RepositoriesManager } from './repositories-manager-class';
+import { Repository } from './repository-class';
 import { menu } from './types';
 import { GetPlatformScriptingExtension, Sleep } from './utils';
 import { GetValidatorFunction } from './validators';
@@ -49,6 +50,7 @@ async function view() {
 	await view();
 }
 
+// TODO: this is ugly af, move to somewhere else...
 const MENU: {
 	[K in menu]: () => void | Promise<void>;
 } = {
