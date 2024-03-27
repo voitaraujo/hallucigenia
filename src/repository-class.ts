@@ -217,16 +217,20 @@ export class Repository {
 				stdio: 'pipe',
 			});
 
-			scriptProcess.stdout.on('data', (data) => {
-				log.write(data.toString());
+			scriptProcess.stdout.on('data', (data: unknown) => {
+				if (data && data.toString) {
+					log.write(data.toString());
+				}
 			});
 
-			scriptProcess.stderr.on('data', (data) => {
-				log.write(data.toString());
+			scriptProcess.stderr.on('data', (data: unknown) => {
+				if (data && data.toString) {
+					log.write(data.toString());
+				}
 			});
 
 			scriptProcess.on('close', (code) => {
-				log.write(`script exited with code ${code}`);
+				log.write(`script exited with code ${code || 'unknown'}`);
 				log.end();
 			});
 
@@ -285,7 +289,7 @@ export class Repository {
 
 	#GetConfAsSafeObject(repoSlug: string) {
 		const repository_conf_path = this.#GetConfLocationPath(repoSlug);
-		let obj;
+		let obj: unknown;
 
 		try {
 			const conf_content = fs

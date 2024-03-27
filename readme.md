@@ -9,6 +9,7 @@
 - Run `side effects`(terminal scripts) locally when any of them are updated; <br>
 
 ### Usage
+
 _WIP_
 
 ### Dependencies
@@ -47,10 +48,7 @@ chmod +x ./dist/hallucigenia.js
 
 Finally, just call **`hallucigenia`** on your terminal to see the app running.
 
-
 https://github.com/voitaraujo/hallucigenia/assets/36885540/50bcca81-f2ec-4083-ba3b-b2d3f4c4bf47
-
-
 
 ### TODO
 

@@ -11,7 +11,7 @@ import {
 import chalk from 'chalk';
 import clear from 'clear';
 import figlet from 'figlet';
-import ora from 'ora';
+import ora, { Ora } from 'ora';
 
 import { FetchRepository, FetchRepositoryBranches } from './bitbucket-conn';
 import { SPINNER_CONFIGURATION } from './constants';
@@ -178,8 +178,8 @@ const MENU: {
 					(s) => s === target_repo.GetRepositoryConf().repository_name
 				);
 
-				let run_anm;
-				let run_result;
+				let run_anm: Ora | undefined;
+				let run_result: boolean | undefined;
 
 				switch (true) {
 					case typeof branch_script !== 'undefined':
