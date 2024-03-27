@@ -1,7 +1,7 @@
 {
 	"name": "hallucigenia",
 	"type": "module",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"bin": {
 		"hallucigenia": "./dist/hallucigenia.js"
 	},
@@ -14,7 +14,8 @@
 		"prettier:check": "prettier --check .",
 		"prettier": "prettier --write .",
 		"lint:check": "eslint .",
-		"lint": "eslint . --fix"
+		"lint": "eslint . --fix",
+		"ts-coverage": "typescript-coverage-report"
 	},
 	"homepage": "https://github.com/voitaraujo/hallucigenia",
 	"devDependencies": {
@@ -30,6 +31,7 @@
 		"eslint": "^8.57.0",
 		"prettier": "^3.2.5",
 		"typescript": "^5.0.0",
+		"typescript-coverage-report": "^1.0.0",
 		"typescript-eslint": "^7.1.1"
 	},
 	"dependencies": {
@@ -41,5 +43,15 @@
 		"figlet": "^1.7.0",
 		"ora": "^8.0.1",
 		"zod": "^3.22.4"
+	},
+	"peerDependencies": {
+		"react": "^18.2.0",
+		"react-dom": "^18.2.0"
+	},
+	"typeCoverage": {
+		"ignoreFiles": [
+			"dist/**/*",
+			"coverage-ts/**/*"
+		]
 	}
 }
