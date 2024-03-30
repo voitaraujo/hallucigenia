@@ -2,8 +2,18 @@
 	"name": "hallucigenia",
 	"type": "module",
 	"version": "0.3.1",
+	"main": "dist/hallucigenia.js",
+	"description": "Scuffed CLI for tracking updates to branches on bitbucket repositories and running side effects(scripts)",
+	"keywords": [
+		"bitbucket",
+		"CLI",
+		"repositories",
+		"branches",
+		"clone"
+	],
+	"license": "MIT",
 	"bin": {
-		"hallucigenia": "./dist/hallucigenia.js"
+		"hallucigenia": "dist/hallucigenia.js"
 	},
 	"author": "Voitila Araujo<voitilaaraujo@gmail.com>",
 	"scripts": {

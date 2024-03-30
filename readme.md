@@ -55,6 +55,5 @@ https://github.com/voitaraujo/hallucigenia/assets/36885540/50bcca81-f2ec-4083-ba
 [ ] Encrypt data on .conf files<br>
 [ ] Make the "watching" feature a independent process<br>
 [ ] Fix grammar<br>
-[ ] publish to npm
 
 <!-- [REEVALUATING] Use chokidar to monitor & update the app state when any file inside "repositories" change<br> -->
