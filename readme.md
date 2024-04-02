@@ -2,58 +2,80 @@
 
 ![](https://github.com/voitaraujo/hallucigenia/assets/36885540/ee48c7d2-34e5-4b51-8d50-3e86910d9b1c)
 
-## What you can do
+### Sections
+
+- [Purpose](#purpose)
+- [Dependencies](#dependencies)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Developing](#developing)
+- [Motivation](#motivation)
+- [Limitations](#limitations)
+- [TODO's](#todo)
+
+## Purpose
 
 - Register your BitBucket `repositories`; <br>
 - Mark `branches` to be observed; <br>
-- Run `side effects`(terminal scripts) locally when any of them are updated; <br>
+- Clone on detecting `changes`; <br>
+- Run `side effects` locally over them; <br>
 
-### Usage
-
-_WIP_
-
-### Dependencies
+## Dependencies
 
 - [git](https://git-scm.com/)
 
+## Installation
+
+install the CLI globally using your preferred package manager.
+
+```
+npm install -g hallucigenia
+```
+
+## Usage
+
+_WIP_
+
 ## Developing
 
-### Dependencies
-
-- [esbuild](https://github.com/evanw/esbuild) and/or [ncc](https://github.com/vercel/ncc)<br><br>
-
-Clone the project and install the dependencies with your preferred package manager
+After cloning the repository, open the folder on your terminal and install the dependencies using your preferred package manager.
 
 ```
-pnpm install
+npm install
 ```
 
-Build _all the .ts files_ to a _single .js_ on the **/dist** folder(you can add the `--watch` flag at the end of the `build:esbuild` command on the `package.json` to make esbuild watch for code changes)
+Build _all the .ts files_ to a _single hallucigenia_d.js_ on the **/dist** folder and execute it with the `dev` command.
 
 ```
-pnpm build:esbuild
+npm run dev
 ```
 
-Link the content of the _/dist_ to make the _"hallucigenia"_ command available on your terminal(you'll have to be at the root of the project for this to work!)
+<br>
+
+> Alternatively, you could run `build:esbuild` and **link** the project to make the _"hallucigenia"_ command available on your terminal, but if you already have the package installed globally it may confuse your package manager(dunno, didn't tried tbh ¯\\\_(ツ)\_/¯).
+
+<br>
 
 ```
-pnpm --global link
+// not recommended
+
+npm run build:esbuild
+
+npm --global link
+
+hallucigenia
 ```
 
-Also **if you are on OSX**, you may need to run this command to make the .js executable
+## Motivation
 
-```
-chmod +x ./dist/hallucigenia.js
-```
+This CLI was intended to be only used internally by a client, which needed a simple way to deploy and test(locally) whenever some branches from his bitbucket repository got updated. Since I saw some people looking for something similar while doing my research, I decided to make it public.
 
-Finally, just call **`hallucigenia`** on your terminal to see the app running.
+## Limitations
 
-https://github.com/voitaraujo/hallucigenia/assets/36885540/50bcca81-f2ec-4083-ba3b-b2d3f4c4bf47
+_WIP_
 
-### TODO
+## TODO
 
 [ ] Encrypt data on .conf files<br>
 [ ] Make the "watching" feature a independent process<br>
 [ ] Fix grammar<br>
-
-<!-- [REEVALUATING] Use chokidar to monitor & update the app state when any file inside "repositories" change<br> -->
