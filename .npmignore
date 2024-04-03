@@ -175,4 +175,11 @@ out
 
 
 coverage-ts
-dist/
+dist/hallucigenia_d.js
+src/**/*
+.eslintignore
+.eslintrc.json
+.prettierignore
+.prettierrc.json
+reset.d.ts
+tsconfig.json

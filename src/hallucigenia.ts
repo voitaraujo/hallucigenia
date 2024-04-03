@@ -13,6 +13,7 @@ import clear from 'clear';
 import figlet from 'figlet';
 import ora, { Ora } from 'ora';
 
+import packageJson from '../package.json';
 import { FetchRepository, FetchRepositoryBranches } from './bitbucket-conn';
 import { SPINNER_CONFIGURATION } from './constants';
 import { HallucigeniaState } from './hallucigenia-state-class';
@@ -40,9 +41,7 @@ async function view() {
 
 	console.log(figlet.textSync('Hallucigenia'));
 
-	console.log(
-		`\n	found ~> ${chalk.bgGreen(` ${REPOSITORIES.GetRepos().length} repositories `)}\n\n`
-	);
+	console.log(` v${packageJson.version} \n\n`);
 
 	await MENU[APP_STATE.GetMenu()]();
 

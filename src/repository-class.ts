@@ -202,20 +202,26 @@ export class Repository {
 
 			const log = fs.createWriteStream(path.join(log_path, log_name));
 
-			const scriptProcess = spawn(script_name, {
-				cwd: script_path,
-				env: {
-					...process.env,
-					UPDATED_BRANCH_PATH: path.join(
-						REPOSITORIES_PATH_IDENTIFIER,
-						this.#repository_slug,
-						'branches',
-						updatedBranchName
-					),
-				},
-				shell: true,
-				stdio: 'pipe',
-			});
+			const scriptProcess = spawn(
+				GetPlatformScriptingExtension() === '.sh' ? 'bash' : script_name,
+				GetPlatformScriptingExtension() === '.sh'
+					? [path.join(script_path, script_name)]
+					: [],
+				{
+					cwd: script_path,
+					env: {
+						...process.env,
+						UPDATED_BRANCH_PATH: path.join(
+							REPOSITORIES_PATH_IDENTIFIER,
+							this.#repository_slug,
+							'branches',
+							updatedBranchName
+						),
+					},
+					shell: true,
+					stdio: 'pipe',
+				}
+			);
 
 			scriptProcess.stdout.on('data', (data: unknown) => {
 				if (data && data.toString) {
