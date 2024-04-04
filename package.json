@@ -1,7 +1,11 @@
 {
 	"name": "hallucigenia",
 	"type": "module",
-	"version": "0.3.1",
+	"version": "0.3.3",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/voitaraujo/hallucigenia.git"
+	},
 	"main": "dist/hallucigenia.js",
 	"description": "Scuffed CLI for tracking updates to branches on bitbucket repositories and running side effects(scripts)",
 	"keywords": [
@@ -15,7 +19,14 @@
 	"bin": {
 		"hallucigenia": "dist/hallucigenia.js"
 	},
-	"author": "Voitila Araujo<voitilaaraujo@gmail.com>",
+	"author": {
+		"name": "Voitila Araujo",
+		"email": "voitilaaraujo@gmail.com",
+		"url": "https://voit.dev"
+	},
+	"engines": {
+		"node": ">=18"
+	},
 	"scripts": {
 		"dev": "esbuild --bundle src/hallucigenia.ts --platform=node --outfile=dist/hallucigenia_d.js --packages=external --format=esm && node dist/hallucigenia_d.js",
 		"build:esbuild": "esbuild --bundle src/hallucigenia.ts --platform=node --outfile=dist/hallucigenia.js --packages=external --format=esm --minify",
@@ -50,6 +61,7 @@
 		"chokidar": "^3.6.0",
 		"clear": "^0.1.0",
 		"figlet": "^1.7.0",
+		"latest-version": "^9.0.0",
 		"ora": "^8.0.1",
 		"zod": "^3.22.4"
 	},
