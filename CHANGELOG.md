@@ -13,6 +13,7 @@
 ### Fixed
 
 - execution of .sh files on OSX(possibly on Linux as well).
+- repository field on package.json
 
 ### Changed
 

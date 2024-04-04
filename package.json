@@ -2,7 +2,10 @@
 	"name": "hallucigenia",
 	"type": "module",
 	"version": "0.3.3",
-	"repository": "voitaraujo/hallucigenia",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/voitaraujo/hallucigenia.git"
+	},
 	"main": "dist/hallucigenia.js",
 	"description": "Scuffed CLI for tracking updates to branches on bitbucket repositories and running side effects(scripts)",
 	"keywords": [
