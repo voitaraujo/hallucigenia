@@ -1,11 +1,11 @@
 import {
-  Separator,
-  checkbox,
-  confirm,
-  editor,
-  input,
-  password,
-  select,
+	Separator,
+	checkbox,
+	confirm,
+	editor,
+	input,
+	password,
+	select,
 } from '@inquirer/prompts';
 import chalk from 'chalk';
 import clear from 'clear';
@@ -20,8 +20,12 @@ import { menu } from './types';
 import { GetPlatformScriptingExtension, Sleep } from './utils';
 import { GetValidatorFunction } from './validators';
 
-async function Home(APP_STATE: HallucigeniaState) {
+async function Home(
+	APP_STATE: HallucigeniaState,
+	REPOSITORIES: RepositoriesManager
+) {
 	console.log(chalk.bgCyanBright(' HOME \n'));
+	const r_qty = REPOSITORIES.GetRepos().length;
 
 	const answer = await select<menu>({
 		message: '',
@@ -30,19 +34,22 @@ async function Home(APP_STATE: HallucigeniaState) {
 			{
 				name: 'Watcher',
 				value: 'watch mode',
-				description: 'Watch branches for changes',
+				description: 'watch branches for changes',
 			},
 			{
-				name: 'Repositories',
+				name: `Repositories [${r_qty}]`,
 				value: 'repositories',
-				description: 'List & add repositories',
+				description: 'list or add repositories',
 			},
 			{
 				name: chalk.red('Quit'),
 				value: 'quit',
-				description: 'Quit the app & stop monitoring repositories',
+				description: 'quit the app',
 			},
 		],
+		theme: {
+			prefix: '&',
+		},
 	});
 
 	APP_STATE.SetMenu(answer, null);
@@ -177,7 +184,7 @@ async function WatchMode(REPOSITORIES: RepositoriesManager) {
 
 	const cd = 1000 * 60 * 1;
 	const cd_anm = ora({
-		text: chalk.bgBlackBright('\n[ on cooldown ]'),
+		text: chalk.bgBlackBright('\n[ 1m cool down ]'),
 		spinner: {
 			interval: cd / 7.2,
 			frames: [
@@ -202,6 +209,7 @@ async function Repositories(
 	REPOSITORIES: RepositoriesManager
 ) {
 	console.log(chalk.bgCyanBright(` REPOSITORIES \n`));
+	const repos = REPOSITORIES.GetRepos();
 
 	const answer = await select<menu | `id_${string}`>({
 		message: '',
@@ -210,19 +218,22 @@ async function Repositories(
 			{
 				name: chalk.yellow('< go back'),
 				value: 'home',
+				description: 'go back to home',
 			},
 			{
 				name: chalk.green('+ add repo'),
 				value: 'add repository',
-				description: 'Configure new repository to be monitored',
+				description: 'setup new repository to be monitored',
 			},
-			// TODO: only show this option if there is at least one repository configured
 			{
 				name: '! check connections',
 				value: 'check repositories connection',
+				disabled: repos.length === 0,
+				description:
+					'check if all local repositories still have access to Bitbucket',
 			},
 			new Separator('───────────────────────────────────────────────────────'),
-			...REPOSITORIES.GetRepos().map((repo) => {
+			...repos.map((repo) => {
 				const conf = repo.GetRepositoryConf();
 
 				return {
@@ -246,12 +257,19 @@ async function AddRepository(
 ) {
 	console.log(chalk.bgCyanBright(` ADD REMOTE REPOSITORY CONNECTION \n`));
 
-	// FIXME: apparently its possible to leave all fields empty e submit the repository(only saves an empty .conf file)
+	console.log(chalk.yellow('(leave any required* field empty to cancel)\n'));
+
 	const repository_workspace_name = await input({
-		message: `${chalk.blue('workspace')} name or UUID:`,
+		message: `${chalk.blue('workspace')} name or UUID(*):`,
 	});
+
+	if (repository_workspace_name.trim() === '') {
+		APP_STATE.SetMenu('repositories', null);
+		return;
+	}
+
 	const repository_name = await input({
-		message: `${chalk.blue('repository')} name or UUID:`,
+		message: `${chalk.blue('repository')} name or UUID(*):`,
 		validate: (value) => {
 			const v = GetValidatorFunction('bitbucket', 'repository_name');
 
@@ -264,8 +282,14 @@ async function AddRepository(
 			);
 		},
 	});
+
+	if (repository_name.trim() === '') {
+		APP_STATE.SetMenu('repositories', null);
+		return;
+	}
+
 	const repository_access_token = await password({
-		message: `repository ${chalk.yellow('access token')}:`,
+		message: `repository ${chalk.yellow('access token')}(*):`,
 		mask: '*',
 		validate: (value) => {
 			const v = GetValidatorFunction('bitbucket', 'access_token');
@@ -280,6 +304,12 @@ async function AddRepository(
 			spinner: SPINNER_CONFIGURATION,
 		},
 	});
+
+	if (repository_access_token.trim() === '') {
+		APP_STATE.SetMenu('repositories', null);
+		return;
+	}
+
 	const repository_slug = await input({
 		message: 'repository alias: ',
 		default: repository_name,
@@ -293,13 +323,13 @@ async function AddRepository(
 		},
 	});
 
-	Repository.AttachRepository(repository_slug, {
+	const created_repository_id = Repository.AttachRepository(repository_slug, {
 		repository_access_token,
 		repository_name,
 		repository_workspace_name,
 	});
 
-	APP_STATE.SetMenu('repositories', null);
+	APP_STATE.SetMenu('sync repository branches', created_repository_id);
 }
 
 async function RepositoryOptions(
@@ -307,6 +337,7 @@ async function RepositoryOptions(
 	REPOSITORIES: RepositoriesManager
 ) {
 	const target_repo = REPOSITORIES.GetRepo(APP_STATE.GetTargetRepositoryId());
+	const target_conf = target_repo.GetRepositoryConf();
 
 	console.log(
 		chalk.bgCyanBright(` DETAILS ~> [ ${target_repo.GetRepositorySlug()} ] \n`)
@@ -319,26 +350,35 @@ async function RepositoryOptions(
 			{
 				name: chalk.yellow('< go back'),
 				value: 'repositories',
+				description: 'go back to repositories list',
 			},
 			{
 				name: '! sync branch list',
 				value: 'sync repository branches',
+				description: 'sync the local branch list with the remote',
 			},
 			new Separator('───────────────────────────────────────────────────────'),
 			{
-				name: `Observable branches [${target_repo.GetRepositoryConf().observed_branches.length}/${target_repo.GetRepositoryConf().branches.length}]`,
+				name: `Observable branches [${target_conf.observed_branches.length}/${target_conf.branches.length}]`,
 				value: 'repository branches',
-				description: 'List & select branches from repository to be observed',
+				description: 'list & select branches from to be observed',
+				/**
+				 * it used to be a problem when accessing this menu when there were no branches locally,
+				 * but now asap we setup a new repo we also sync it with the remote branches
+				 */
+				disabled: target_conf.branches.length === 0,
 			},
 
 			{
-				name: `Side Effects [${target_repo.GetRepositoryConf().observed_branches.filter((ob) => target_repo.GetRepositoryScriptList().includes(ob.branch_name)).length}/${target_repo.GetRepositoryConf().observed_branches.length}]`,
+				name: `Side Effects [${target_conf.observed_branches.filter((ob) => target_repo.GetRepositoryScriptList().includes(ob.branch_name)).length}/${target_repo.GetRepositoryConf().observed_branches.length}]`,
 				value: 'repository side effects',
-				description: 'instructions to run when branches get updated',
+				description: 'setup instructions to run when branches get updated',
 			},
 			{
 				name: 'Delete repository',
 				value: 'delete repository',
+				description:
+					'remove the local configuration and files related to this repository',
 			},
 		],
 	});
@@ -363,7 +403,7 @@ async function DeleteRepository(
 	});
 
 	if (id_delete_answer) {
-		target_repo.DettachRepository();
+		target_repo.DetachRepository();
 		APP_STATE.SetMenu('repositories', null);
 		return;
 	}
@@ -401,7 +441,6 @@ async function RepositoryBranches(
 			)
 	);
 
-	// FIXME: if the list is empty, it will throw an error
 	const branch_list_answer = await checkbox({
 		message: 'select branches to observe',
 		choices: [
@@ -426,7 +465,7 @@ async function RepositoryBranches(
 		})),
 	});
 
-	REPOSITORIES.UncacheUnobservedBranches();
+	REPOSITORIES.FreeUnobservedBranchesData();
 
 	APP_STATE.SetMenu('repository options', APP_STATE.GetTargetRepositoryId());
 }
@@ -534,12 +573,13 @@ async function RepositorySideEffects(
 			{
 				name: chalk.yellow('< go back'),
 				value: 'repository options',
+				description: 'go back to repository options',
 			},
 			{
-				name: `default script [${target_repo_script_list.includes(target_repo_conf.repository_name) ? chalk.green('set') : chalk.red('not set')}]`, // se já existir um script mudar essa legenda
+				name: `default script [${target_repo_script_list.includes(target_repo_conf.repository_name) ? chalk.green('set') : chalk.red('not set')}]`,
 				value: 'default script',
 				description:
-					"This script will run for updated branches that don't have an specific one",
+					"script to run when updated branches that don't have an specific one",
 			},
 			new Separator('───────────────────────────────────────────────────────'),
 			...target_repo_conf.observed_branches.map((branch) => ({
@@ -557,11 +597,11 @@ async function RepositorySideEffects(
 
 		const script = await editor({
 			message: `
-1- The script will be saved and run according to the CURRENT system executing the CLI.
-2- After writing the script, just save and close your editor.
-3- During the script execution the environment variable "UPDATED_BRANCH_PATH" will be available to easy access to the branch source path.
-4- To "delete" the script just leave the editor blank.
-5- The script will be run from the app folder it's stored, if you want to make changes to other paths make sure to "cd" to them and/or use absolute paths.
+1- The script will be saved and run according to the CURRENT system executing the CLI(windows = .bat|cmd; MacOS/Linux = .sh|bash).
+2- After writing the script, just save and close the file on your editor(it's a tmp file that will be read and deleted).
+3- During the script execution an environment variable called "UPDATED_BRANCH_PATH" will be available to easily access the branch source path.
+4- To "delete" the script just leave the editor blank, save and quit.
+5- The script will be run from the CLI data folder that it's stored, if your script interacts with another paths make sure to "cd" to them and/or use absolute paths.
 `,
 			waitForUseInput: true,
 			postfix: GetPlatformScriptingExtension(),
@@ -600,7 +640,7 @@ function RenderMenu(
 ) {
 	switch (APP_STATE.GetMenu()) {
 		case 'home':
-			return Home(APP_STATE);
+			return Home(APP_STATE, REPOSITORIES);
 		case 'watch mode':
 			return WatchMode(REPOSITORIES);
 		case 'repositories':
@@ -627,4 +667,3 @@ function RenderMenu(
 }
 
 export { RenderMenu };
-

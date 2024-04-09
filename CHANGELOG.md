@@ -1,6 +1,24 @@
 # Changelog
 
-## 0.3.3 - 2024-03-03
+## 0.3.4 - 2024-04-08
+
+### Added
+
+- descriptions to most of the options
+- allow user to quick setup of new repository
+
+### Fixed
+
+- grammar on multiple files
+- naming of functions and params
+
+### Changed
+
+- include /.vscode folder to .ignore files
+
+
+
+## 0.3.3 - 2024-04-03
 
 ### Added
 

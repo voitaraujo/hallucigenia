@@ -61,7 +61,7 @@ export class Repository {
 		return id;
 	}
 
-	DettachRepository() {
+	DetachRepository() {
 		fs.rmSync(path.join(REPOSITORIES_PATH_IDENTIFIER, this.#repository_slug), {
 			recursive: true,
 			force: true,
@@ -256,7 +256,7 @@ export class Repository {
 		);
 
 		// clear folder if it already exists
-		this.UncacheBranch(branchName);
+		this.FreeBranchData(branchName);
 
 		const clone_command = `git clone -b "${branchName}" "https://x-token-auth:${repository_conf.repository_access_token}@bitbucket.org/${repository_conf.repository_workspace_name}/${repository_conf.repository_name}.git" "${target_branch_folder}"`;
 		const command = exec(clone_command);
@@ -273,13 +273,13 @@ export class Repository {
 
 		// clear folder if the clone wasn't successful
 		if (!clone_success) {
-			this.UncacheBranch(branchName);
+			this.FreeBranchData(branchName);
 		}
 
 		return clone_success;
 	}
 
-	UncacheBranch(branchName: string) {
+	FreeBranchData(branchName: string) {
 		const target_branch_folder = path.join(
 			REPOSITORIES_PATH_IDENTIFIER,
 			this.#repository_slug,

@@ -173,7 +173,6 @@ out
 # Finder (MacOS) folder config
 .DS_Store
 
-
 coverage-ts
 dist/hallucigenia_d.js
 src/**/*
@@ -183,3 +182,4 @@ src/**/*
 .prettierrc.json
 reset.d.ts
 tsconfig.json
+.vscode
