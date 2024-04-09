@@ -15,8 +15,9 @@ const REPOSITORIES = new RepositoriesManager();
 async function main() {
 	REPOSITORIES.SyncRepos();
 
+	console.log('checking for updates...');
 	const pkg_latest_version = await latestVersion(packageJson.name).catch(
-		(_) => packageJson.version
+		(_: unknown) => packageJson.version
 	);
 
 	const pkg_running_version = packageJson.version;

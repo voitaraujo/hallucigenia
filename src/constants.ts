@@ -9,7 +9,7 @@ const REPOSITORIES_PATH_IDENTIFIER = path.join(
 );
 const BITBUCKET_API_BASE_ENDPOINT = 'https://api.bitbucket.org/2.0';
 const SPINNER_CONFIGURATION = {
-	frames: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'], // normaly inquirer already has this by default but for some reason it appears buggy on my terminal, explicitly using this array ensure the expected behavior tho.
+	frames: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'], // normally inquirer already has this by default but for some reason it appears buggy on my terminal, explicitly using this array ensure the expected behavior tho.
 	interval: 100,
 };
 

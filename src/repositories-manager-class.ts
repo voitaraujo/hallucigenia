@@ -29,7 +29,7 @@ export class RepositoriesManager {
 		this.#repositories = this.#LookupRepositories();
 	}
 
-	UncacheUnobservedBranches() {
+	FreeUnobservedBranchesData() {
 		for (const repo of this.#repositories) {
 			const cached_branches = fs
 				.readdirSync(
@@ -50,7 +50,7 @@ export class RepositoriesManager {
 						.GetRepositoryConf()
 						.observed_branches.find((ob) => ob.branch_name === cb.name)
 				) {
-					repo.UncacheBranch(cb.name);
+					repo.FreeBranchData(cb.name);
 				}
 			}
 		}

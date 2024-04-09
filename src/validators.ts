@@ -8,9 +8,18 @@ const ValidatorsByContext = {
 				RepositoryConf,
 				'repository_workspace_name' | 'repository_name'
 			>,
-			repositories_confs: RepositoryConf[]
+			repositories_conf: RepositoryConf[]
 		) => {
-			for (const rc of repositories_confs) {
+			if (newRepositoryBitBucketData.repository_name.trim() === '') {
+				/**
+				 * The empty string signals to the whole setup new repository function to exit,
+				 * and this behavior is dealt with outside the validator function.
+				 */
+
+				return true;
+			}
+
+			for (const rc of repositories_conf) {
 				const sameWS =
 					rc.repository_workspace_name ===
 					newRepositoryBitBucketData.repository_workspace_name;
@@ -32,6 +41,15 @@ const ValidatorsByContext = {
 				| 'repository_access_token'
 			>
 		) => {
+			if (newRepositoryBitBucketData.repository_access_token.trim() === '') {
+				/**
+				 * The empty string signals to the whole setup new repository function to exit,
+				 * and this behavior is dealt with outside the validator function.
+				 */
+
+				return true;
+			}
+
 			try {
 				await FetchRepository({
 					repository_access_token:
