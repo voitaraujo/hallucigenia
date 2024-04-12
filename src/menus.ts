@@ -66,7 +66,9 @@ async function WatchMode(REPOSITORIES: RepositoriesManager) {
 		(r) => r.GetRepositoryConf().remote_connection_status === 'ok'
 	);
 
-	// !be cautious with this bc bitbucket has a rate limit on API requests and git operations as well ~> https://support.atlassian.com/bitbucket-cloud/docs/api-request-limits/
+	// FIXME: I've have noticed that if I revoke the access token from a repository(and it still have the connection status "ok"), trying to watch it will lock the program.
+
+	// be cautious with this bc bitbucket has a rate limit on API requests and git operations as well ~> https://support.atlassian.com/bitbucket-cloud/docs/api-request-limits/
 	const branches_to_clone = await new Promise<
 		{ repo_id: string; branch_name: string; branch_hash: string }[]
 	>((resolve) => {
@@ -343,6 +345,9 @@ async function RepositoryOptions(
 		chalk.bgCyanBright(` DETAILS ~> [ ${target_repo.GetRepositorySlug()} ] \n`)
 	);
 
+	// TODO: if the repository have the connection status "ko", disable some of the options that rely on remote connection.
+	// TODO: add option to change repository remote connection fields(workspace_name, repository_name, repository_access_token), we probably could just make some changes to the AddRepository() and reutilize it.
+	// TODO: add option to change the repository_slug.
 	const repository_answer = await select<menu>({
 		message: '',
 		loop: false,

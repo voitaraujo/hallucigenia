@@ -74,9 +74,8 @@ This CLI was intended to be only used internally by a client, which needed a sim
 
 _WIP_
 
-## TODO
+## TODO's
 
 [ ] Encrypt data on .conf files<br>
-[ ] Make the "watching" feature a independent process<br>
-[ ] Fix grammar<br>
+[ ] Make the "watching" feature an independent process<br>
 [ ] Replace axios by fetch API<br>

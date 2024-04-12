@@ -16,8 +16,6 @@
 
 - include /.vscode folder to .ignore files
 
-
-
 ## 0.3.3 - 2024-04-03
 
 ### Added
