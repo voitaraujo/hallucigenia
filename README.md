@@ -4,14 +4,18 @@
 
 ### Sections
 
-- [Purpose](#purpose)
-- [Dependencies](#dependencies)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Developing](#developing)
-- [Motivation](#motivation)
-- [Limitations](#limitations)
-- [TODO's](#todo)
+* [Purpose](#purpose)
+* [Dependencies](#dependencies)
+* [Installation](#installation)
+* [Usage](#usage)
+  * [Setting up repositories](#setting-up-new-repository)
+  * [Branches & Side Effects](#observing-branches-and-writing-side-effects)
+  * [Watcher](#watcher)
+  * [Checking and deleting connection](#checking-and-deleting-connection)
+* [Developing](#developing)
+* [Motivation](#motivation)
+* [Limitations](#limitations)
+* [TODO's](#todo)
 
 ## Purpose
 
@@ -34,7 +38,43 @@ npm install -g hallucigenia
 
 ## Usage
 
-_WIP_
+First of all, type `hallucigenia` on your terminal to run the CLI.
+
+### Setting up new repository
+
+Follow the steps on the video bellow to set up a new remote connection with Bitbucket repository.
+
+[![](https://img.youtube.com/vi/i8q2gzHHSrY/maxresdefault.jpg)](https://youtu.be/i8q2gzHHSrY)
+
+> NOTE: The repository access token only needs the "read" permission on repository level.
+
+### Observing branches and writing side effects
+
+Follow the steps on the video bellow to mark the branches on certain repositories to be observed and how to write side effects to run when they get updated.
+
+[![](https://img.youtube.com/vi/xBoq6ecEXPk/maxresdefault.jpg)](https://youtu.be/xBoq6ecEXPk)
+
+Make sure to read the instructions shown when you are about to write a new side effect, they are important!
+
+> NOTE: the text editor opened to write the side effects is the default of your system.
+
+### Watcher
+
+The following video shows how to run the watcher mode and the result of a side effect
+
+[![](https://img.youtube.com/vi/UHEHib-RvPo/maxresdefault.jpg)](https://youtu.be/UHEHib-RvPo)
+
+The watcher mode will look for changes on observed branches of all repositories which may result on multiple calls to the Bitbucket API, for that reason we have a fixed cool down of 1 minute between checks so you don't DDoS them.
+
+Note that we use the `$UPDATED_BRANCH_PATH` environment variable on the side effect script to know where the **cloned branch** is located and move it.
+
+### Checking and deleting connection
+
+If you have problems watching a branch or updating the branch list of a repository, your access token might have been revoked, in that case you can check the connection with the repository as shown on the following video and delete the connection before setting it up again.
+
+[![](https://img.youtube.com/vi/JMQp2HuSi68/maxresdefault.jpg)](https://youtu.be/JMQp2HuSi68)
+
+> NOTE: **soon** will be possible to edit the connection details!
 
 ## Developing
 
