@@ -76,6 +76,15 @@ export class Repository {
 		return this.#repository_slug;
 	}
 
+	UpdateRepositorySlug(newSlug: string) {
+		fs.renameSync(
+			path.join(REPOSITORIES_PATH_IDENTIFIER, this.#repository_slug),
+			path.join(REPOSITORIES_PATH_IDENTIFIER, newSlug)
+		);
+
+		this.#repository_slug = newSlug;
+	}
+
 	GetRepositoryConf() {
 		const safe_conf_content = this.#GetConfAsSafeObject(this.#repository_slug);
 
@@ -117,8 +126,7 @@ export class Repository {
 			.filter(
 				(s) => s.isFile() && s.name.endsWith(GetPlatformScriptingExtension())
 			)
-			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-			.map((s) => s.name.split('.').at(0)!);
+			.map((s) => path.basename(s.name, GetPlatformScriptingExtension()));
 
 		return repo_scripts;
 	}

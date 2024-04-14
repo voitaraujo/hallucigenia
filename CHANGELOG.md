@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.3.5 - 2024-04-14
+
+### Added
+
+- menu to change the remote connection details
+- menu to change the remote connection alias
+
+### Fixed
+
+- contrast of the menu names
+- disabling remote options of repository when connection status is "offline"
+
+### Changed
+
+- naming of repository related menu names(they start with "repository:" now)
+- pkg version number on package.json
+
+### Removed
+
+- a lot of ugly if statements
+
 ## 0.3.4 - 2024-04-08
 
 ### Added

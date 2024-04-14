@@ -10,11 +10,13 @@ export type menu =
 	| 'repositories'
 	| 'add repository'
 	| 'check repositories connection'
-	| 'repository options'
-	| 'repository branches'
-	| 'repository side effects'
-	| 'delete repository'
-	| 'sync repository branches'
+	| 'repository:options'
+	| 'repository:branches'
+	| 'repository:side effects'
+	| 'repository:delete'
+	| 'repository:sync branches'
+	| 'repository:edit connection'
+	| 'repository:edit alias'
 	| 'quit';
 
 export interface BranchRequest {
@@ -197,10 +199,12 @@ export interface RepositoryRequest {
 
 type MenusThatNeedId = Extract<
 	menu,
-	| 'repository options'
-	| 'repository branches'
-	| 'repository side effects'
-	| 'delete repository'
-	| 'sync repository branches'
+	| 'repository:options'
+	| 'repository:branches'
+	| 'repository:side effects'
+	| 'repository:delete'
+	| 'repository:sync branches'
+	| 'repository:edit connection'
+	| 'repository:edit alias'
 >;
 export type IdType<T extends menu> = T extends MenusThatNeedId ? string : null;

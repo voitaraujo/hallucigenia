@@ -4,18 +4,18 @@
 
 ### Sections
 
-* [Purpose](#purpose)
-* [Dependencies](#dependencies)
-* [Installation](#installation)
-* [Usage](#usage)
-  * [Setting up repositories](#setting-up-new-repository)
-  * [Branches & Side Effects](#observing-branches-and-writing-side-effects)
-  * [Watcher](#watcher)
-  * [Checking and deleting connection](#checking-and-deleting-connection)
-* [Developing](#developing)
-* [Motivation](#motivation)
-* [Limitations](#limitations)
-* [TODO's](#todo)
+- [Purpose](#purpose)
+- [Dependencies](#dependencies)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Setting up repositories](#setting-up-new-repository)
+  - [Branches & Side Effects](#observing-branches-and-writing-side-effects)
+  - [Watcher](#watcher)
+  - [Checking and deleting connection](#checking-and-deleting-connection)
+- [Developing](#developing)
+- [Motivation](#motivation)
+- [Limitations](#limitations)
+- [TODO's](#todo)
 
 ## Purpose
 
