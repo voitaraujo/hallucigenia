@@ -78,4 +78,3 @@ _WIP_
 
 [ ] Encrypt data on .conf files<br>
 [ ] Make the "watching" feature an independent process<br>
-[ ] Replace axios by fetch API<br>
