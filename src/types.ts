@@ -15,17 +15,19 @@ export interface RepositoryConf {
 }
 
 export type menu =
-  | 'home'
-  | 'watch mode'
-  | 'repositories'
-  | 'add repository'
-  | 'check repositories connection'
-  | 'repository options'
-  | 'repository branches'
-  | 'repository side effects'
-  | 'delete repository'
-  | 'sync repository branches'
-  | 'quit';
+	| 'home'
+	| 'watch mode'
+	| 'repositories'
+	| 'add repository'
+	| 'check repositories connection'
+	| 'repository:options'
+	| 'repository:branches'
+	| 'repository:side effects'
+	| 'repository:delete'
+	| 'repository:sync branches'
+	| 'repository:edit connection'
+	| 'repository:edit alias'
+	| 'quit';
 
 export interface BranchRequest {
   pagelen: number;
@@ -206,11 +208,13 @@ export interface RepositoryRequest {
 }
 
 type MenusThatNeedId = Extract<
-  menu,
-  | 'repository options'
-  | 'repository branches'
-  | 'repository side effects'
-  | 'delete repository'
-  | 'sync repository branches'
+	menu,
+	| 'repository:options'
+	| 'repository:branches'
+	| 'repository:side effects'
+	| 'repository:delete'
+	| 'repository:sync branches'
+	| 'repository:edit connection'
+	| 'repository:edit alias'
 >;
 export type IdType<T extends menu> = T extends MenusThatNeedId ? string : null;

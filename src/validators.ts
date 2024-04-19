@@ -80,8 +80,8 @@ const ValidatorsByContext = {
 	},
 } satisfies {
 	[K: string]: {
-		[K: string]: // eslint-disable-next-line
-		| ((...args: any[]) => string | boolean | Promise<string | boolean>)
+		[K: string]:
+			| ((...args: any[]) => string | boolean | Promise<string | boolean>)
 			| undefined;
 	};
 };
