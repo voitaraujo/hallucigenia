@@ -24,12 +24,13 @@ async function Home(
 	APP_STATE: HallucigeniaState,
 	REPOSITORIES: RepositoriesManager
 ) {
-	console.log(chalk.bgCyanBright(' HOME \n'));
+	console.log(chalk.bgCyanBright(chalk.black(` HOME \n`)));
 	const r_qty = REPOSITORIES.GetRepos().length;
 
 	const answer = await select<menu>({
 		message: '',
 		loop: false,
+		pageSize: 10,
 		choices: [
 			{
 				name: 'Watcher',
@@ -56,7 +57,7 @@ async function Home(
 }
 
 async function WatchMode(REPOSITORIES: RepositoriesManager) {
-	console.log(chalk.bgCyanBright(' WATCHING BRANCHES \n'));
+	console.log(chalk.bgCyanBright(chalk.black(` WATCHING BRANCHES \n`)));
 
 	const info_anm = ora(
 		'watching branches for changes...(ctrl+c to stop)'
@@ -66,7 +67,7 @@ async function WatchMode(REPOSITORIES: RepositoriesManager) {
 		(r) => r.GetRepositoryConf().remote_connection_status === 'ok'
 	);
 
-	// !be cautious with this bc bitbucket has a rate limit on API requests and git operations as well ~> https://support.atlassian.com/bitbucket-cloud/docs/api-request-limits/
+	// be cautious with this bc bitbucket has a rate limit on API requests and git operations as well ~> https://support.atlassian.com/bitbucket-cloud/docs/api-request-limits/
 	const branches_to_clone = await new Promise<
 		{ repo_id: string; branch_name: string; branch_hash: string }[]
 	>((resolve) => {
@@ -88,13 +89,19 @@ async function WatchMode(REPOSITORIES: RepositoriesManager) {
 			)
 		).then((remote_branches_info) => {
 			for (let idx = 0; idx < obsrv.length; idx++) {
-				// eslint-disable-next-line
 				const obs = obsrv.at(idx)!;
 
-				// eslint-disable-next-line
 				const res = remote_branches_info.at(idx)!;
 
-				if (res.status === 'rejected') return;
+				if (res.status === 'rejected') {
+					obs.UpdateRepositoryConf({
+						branches: [],
+						observed_branches: [],
+						remote_connection_status: 'ko',
+					});
+
+					continue;
+				}
 
 				for (const o of obs.GetRepositoryConf().observed_branches) {
 					const found = res.value.find((b) => b.name === o.branch_name);
@@ -208,12 +215,13 @@ async function Repositories(
 	APP_STATE: HallucigeniaState,
 	REPOSITORIES: RepositoriesManager
 ) {
-	console.log(chalk.bgCyanBright(` REPOSITORIES \n`));
+	console.log(chalk.bgCyanBright(chalk.black(` REPOSITORIES \n`)));
 	const repos = REPOSITORIES.GetRepos();
 
 	const answer = await select<menu | `id_${string}`>({
 		message: '',
 		loop: false,
+		pageSize: 10,
 		choices: [
 			{
 				name: chalk.yellow('< go back'),
@@ -245,7 +253,7 @@ async function Repositories(
 	});
 
 	if (answer.startsWith('id_')) {
-		APP_STATE.SetMenu('repository options', answer.replace('id_', ''));
+		APP_STATE.SetMenu('repository:options', answer.replace('id_', ''));
 	} else {
 		APP_STATE.SetMenu(answer as menu, null);
 	}
@@ -255,81 +263,96 @@ async function AddRepository(
 	APP_STATE: HallucigeniaState,
 	REPOSITORIES: RepositoriesManager
 ) {
-	console.log(chalk.bgCyanBright(` ADD REMOTE REPOSITORY CONNECTION \n`));
+	console.log(
+		chalk.bgCyanBright(chalk.black(` ADD REMOTE REPOSITORY CONNECTION \n`))
+	);
 
 	console.log(chalk.yellow('(leave any required* field empty to cancel)\n'));
 
-	const repository_workspace_name = await input({
-		message: `${chalk.blue('workspace')} name or UUID(*):`,
-	});
+	try {
+		const repository_workspace_name = await input({
+			message: `${chalk.blue('workspace')} name or UUID(*):`,
+		}).then((value) => {
+			if (value.trim() === '') {
+				throw new Error('canceled by the user');
+			}
 
-	if (repository_workspace_name.trim() === '') {
-		APP_STATE.SetMenu('repositories', null);
-		return;
-	}
+			return value;
+		});
 
-	const repository_name = await input({
-		message: `${chalk.blue('repository')} name or UUID(*):`,
-		validate: (value) => {
-			const v = GetValidatorFunction('bitbucket', 'repository_name');
+		const repository_name = await input({
+			message: `${chalk.blue('repository')} name or UUID(*):`,
+			validate: (value) => {
+				const v = GetValidatorFunction('bitbucket', 'repository_name');
 
-			return v(
-				{
+				return v(
+					{
+						repository_workspace_name: repository_workspace_name,
+						repository_name: value,
+					},
+					REPOSITORIES.GetRepos().map((repo) => repo.GetRepositoryConf())
+				);
+			},
+		}).then((value) => {
+			if (value.trim() === '') {
+				throw new Error('canceled by the user');
+			}
+
+			return value;
+		});
+
+		const repository_access_token = await password({
+			message: `repository ${chalk.yellow('access token')}(*):`,
+			mask: '*',
+			validate: (value) => {
+				const v = GetValidatorFunction('bitbucket', 'access_token');
+
+				return v({
+					repository_access_token: value,
 					repository_workspace_name: repository_workspace_name,
-					repository_name: value,
-				},
-				REPOSITORIES.GetRepos().map((repo) => repo.GetRepositoryConf())
-			);
-		},
-	});
+					repository_name: repository_name,
+				});
+			},
+			theme: {
+				spinner: SPINNER_CONFIGURATION,
+			},
+		}).then((value) => {
+			if (value.trim() === '') {
+				throw new Error('canceled by the user');
+			}
 
-	if (repository_name.trim() === '') {
+			return value;
+		});
+
+		const repository_slug = await input({
+			message: 'repository alias: ',
+			default: repository_name,
+			validate: (value) => {
+				const v = GetValidatorFunction('bitbucket', 'slug');
+
+				return v(
+					value,
+					REPOSITORIES.GetRepos().map((repo) => repo.GetRepositorySlug())
+				);
+			},
+		}).then((value) => {
+			if (value.trim() === '') {
+				throw new Error('canceled by the user');
+			}
+
+			return value;
+		});
+
+		const created_repository_id = Repository.AttachRepository(repository_slug, {
+			repository_access_token,
+			repository_name,
+			repository_workspace_name,
+		});
+
+		APP_STATE.SetMenu('repository:sync branches', created_repository_id);
+	} catch (err: unknown) {
 		APP_STATE.SetMenu('repositories', null);
-		return;
 	}
-
-	const repository_access_token = await password({
-		message: `repository ${chalk.yellow('access token')}(*):`,
-		mask: '*',
-		validate: (value) => {
-			const v = GetValidatorFunction('bitbucket', 'access_token');
-
-			return v({
-				repository_access_token: value,
-				repository_workspace_name: repository_workspace_name,
-				repository_name: repository_name,
-			});
-		},
-		theme: {
-			spinner: SPINNER_CONFIGURATION,
-		},
-	});
-
-	if (repository_access_token.trim() === '') {
-		APP_STATE.SetMenu('repositories', null);
-		return;
-	}
-
-	const repository_slug = await input({
-		message: 'repository alias: ',
-		default: repository_name,
-		validate: (value) => {
-			const v = GetValidatorFunction('bitbucket', 'slug');
-
-			return v(
-				value,
-				REPOSITORIES.GetRepos().map((repo) => repo.GetRepositorySlug())
-			);
-		},
-	});
-
-	const created_repository_id = Repository.AttachRepository(repository_slug, {
-		repository_access_token,
-		repository_name,
-		repository_workspace_name,
-	});
-
-	APP_STATE.SetMenu('sync repository branches', created_repository_id);
 }
 
 async function RepositoryOptions(
@@ -340,12 +363,15 @@ async function RepositoryOptions(
 	const target_conf = target_repo.GetRepositoryConf();
 
 	console.log(
-		chalk.bgCyanBright(` DETAILS ~> [ ${target_repo.GetRepositorySlug()} ] \n`)
+		chalk.bgCyanBright(
+			chalk.black(` DETAILS ~> [ ${target_repo.GetRepositorySlug()} ] \n`)
+		)
 	);
 
 	const repository_answer = await select<menu>({
 		message: '',
 		loop: false,
+		pageSize: 10,
 		choices: [
 			{
 				name: chalk.yellow('< go back'),
@@ -354,29 +380,36 @@ async function RepositoryOptions(
 			},
 			{
 				name: '! sync branch list',
-				value: 'sync repository branches',
+				value: 'repository:sync branches',
 				description: 'sync the local branch list with the remote',
+				disabled: target_conf.remote_connection_status === 'ko',
 			},
 			new Separator('───────────────────────────────────────────────────────'),
 			{
 				name: `Observable branches [${target_conf.observed_branches.length}/${target_conf.branches.length}]`,
-				value: 'repository branches',
+				value: 'repository:branches',
 				description: 'list & select branches from to be observed',
-				/**
-				 * it used to be a problem when accessing this menu when there were no branches locally,
-				 * but now asap we setup a new repo we also sync it with the remote branches
-				 */
 				disabled: target_conf.branches.length === 0,
 			},
 
 			{
 				name: `Side Effects [${target_conf.observed_branches.filter((ob) => target_repo.GetRepositoryScriptList().includes(ob.branch_name)).length}/${target_repo.GetRepositoryConf().observed_branches.length}]`,
-				value: 'repository side effects',
+				value: 'repository:side effects',
 				description: 'setup instructions to run when branches get updated',
 			},
 			{
+				name: 'Update connection',
+				value: 'repository:edit connection',
+				description: 'update repository remote connection details',
+			},
+			{
+				name: 'Change repository alias',
+				value: 'repository:edit alias',
+				description: 'update the alias for this repository',
+			},
+			{
 				name: 'Delete repository',
-				value: 'delete repository',
+				value: 'repository:delete',
 				description:
 					'remove the local configuration and files related to this repository',
 			},
@@ -393,7 +426,9 @@ async function DeleteRepository(
 	const target_repo = REPOSITORIES.GetRepo(APP_STATE.GetTargetRepositoryId());
 
 	console.log(
-		chalk.bgCyanBright(` DELETE ~> [ ${target_repo.GetRepositorySlug()} ] \n`)
+		chalk.bgCyanBright(
+			chalk.black(` DELETE ~> [ ${target_repo.GetRepositorySlug()} ] \n`)
+		)
 	);
 
 	const id_delete_answer = await confirm({
@@ -408,7 +443,7 @@ async function DeleteRepository(
 		return;
 	}
 
-	APP_STATE.SetMenu('repository options', APP_STATE.GetTargetRepositoryId());
+	APP_STATE.SetMenu('repository:options', APP_STATE.GetTargetRepositoryId());
 }
 
 async function RepositoryBranches(
@@ -423,7 +458,9 @@ async function RepositoryBranches(
 
 	console.log(
 		chalk.bgCyanBright(
-			` OBSERVABLE BRANCHES ~> [ ${target_repo.GetRepositorySlug()} ] \n`
+			chalk.black(
+				` OBSERVABLE BRANCHES ~> [ ${target_repo.GetRepositorySlug()} ] \n`
+			)
 		)
 	);
 
@@ -443,6 +480,7 @@ async function RepositoryBranches(
 
 	const branch_list_answer = await checkbox({
 		message: 'select branches to observe',
+		pageSize: 10,
 		choices: [
 			...branches_already_selected.map((b) => ({
 				name: b.branch_name,
@@ -467,7 +505,7 @@ async function RepositoryBranches(
 
 	REPOSITORIES.FreeUnobservedBranchesData();
 
-	APP_STATE.SetMenu('repository options', APP_STATE.GetTargetRepositoryId());
+	APP_STATE.SetMenu('repository:options', APP_STATE.GetTargetRepositoryId());
 }
 
 async function CheckRepositoriesConnection(
@@ -475,7 +513,9 @@ async function CheckRepositoriesConnection(
 	REPOSITORIES: RepositoriesManager
 ) {
 	console.log(
-		chalk.bgCyanBright(' CHECKING CONNECTION TO REMOTE REPOSITORIES \n')
+		chalk.bgCyanBright(
+			chalk.black(` CHECKING CONNECTION TO REMOTE REPOSITORIES \n`)
+		)
 	);
 
 	const sync_animation_host = ora({
@@ -497,6 +537,8 @@ async function CheckRepositoriesConnection(
 			});
 		} catch (err) {
 			repository.UpdateRepositoryConf({
+				branches: [],
+				observed_branches: [],
 				remote_connection_status: 'ko',
 			});
 		}
@@ -518,7 +560,9 @@ async function SyncRepositoryBranches(
 
 	console.log(
 		chalk.bgCyanBright(
-			` UPDATING BRANCH LIST ~> [ ${target_repo.GetRepositorySlug()} ] \n`
+			chalk.black(
+				` UPDATING BRANCH LIST ~> [ ${target_repo.GetRepositorySlug()} ] \n`
+			)
 		)
 	);
 
@@ -542,6 +586,8 @@ async function SyncRepositoryBranches(
 	} catch (err) {
 		target_repo.UpdateRepositoryConf({
 			branches: [],
+			observed_branches: [],
+			remote_connection_status: 'ko',
 		});
 	}
 
@@ -549,7 +595,7 @@ async function SyncRepositoryBranches(
 
 	await Sleep(2000);
 
-	APP_STATE.SetMenu('repository options', APP_STATE.GetTargetRepositoryId());
+	APP_STATE.SetMenu('repository:options', APP_STATE.GetTargetRepositoryId());
 }
 
 async function RepositorySideEffects(
@@ -562,17 +608,18 @@ async function RepositorySideEffects(
 
 	console.log(
 		chalk.bgCyanBright(
-			` SIDE EFFECTS ~> [ ${target_repo.GetRepositorySlug()} ] \n`
+			chalk.black(` SIDE EFFECTS ~> [ ${target_repo.GetRepositorySlug()} ] \n`)
 		)
 	);
 
 	const answer = await select<menu | 'default script' | `branch_${string}`>({
 		message: '',
+		pageSize: 10,
 		loop: false,
 		choices: [
 			{
 				name: chalk.yellow('< go back'),
-				value: 'repository options',
+				value: 'repository:options',
 				description: 'go back to repository options',
 			},
 			{
@@ -634,6 +681,137 @@ async function RepositorySideEffects(
 	return;
 }
 
+async function EditRepositoryConnection(
+	APP_STATE: HallucigeniaState,
+	REPOSITORIES: RepositoriesManager
+) {
+	const target_repo = REPOSITORIES.GetRepo(APP_STATE.GetTargetRepositoryId());
+	const target_conf = target_repo.GetRepositoryConf();
+
+	console.log(
+		chalk.bgCyanBright(chalk.black(` UPDATE REMOTE REPOSITORY CONNECTION \n`))
+	);
+
+	console.log(chalk.yellow('(leave any required* field empty to cancel)\n'));
+
+	try {
+		const repository_workspace_name = await input({
+			message: `${chalk.blue('workspace')} name or UUID(*):`,
+			default: target_conf.repository_workspace_name,
+		}).then((value) => {
+			if (value.trim() === '') {
+				throw new Error('update canceled by user');
+			}
+
+			return value;
+		});
+
+		const repository_name = await input({
+			message: `${chalk.blue('repository')} name or UUID(*):`,
+			default: target_conf.repository_name,
+			validate: (value) => {
+				const v = GetValidatorFunction('bitbucket', 'repository_name');
+
+				return v(
+					{
+						repository_workspace_name: repository_workspace_name,
+						repository_name: value,
+					},
+					REPOSITORIES.GetRepos()
+						.filter(
+							(repo) => repo.GetRepositoryId() !== target_conf.repository_id
+						)
+						.map((repo) => repo.GetRepositoryConf())
+				);
+			},
+		}).then((value) => {
+			if (value.trim() === '') {
+				throw new Error('update canceled by user');
+			}
+
+			return value;
+		});
+
+		const repository_access_token = await password({
+			message: `repository ${chalk.yellow('access token')}(*):`,
+			mask: '*',
+			validate: (value) => {
+				const v = GetValidatorFunction('bitbucket', 'access_token');
+
+				return v({
+					repository_access_token: value,
+					repository_workspace_name: repository_workspace_name,
+					repository_name: repository_name,
+				});
+			},
+			theme: {
+				spinner: SPINNER_CONFIGURATION,
+			},
+		}).then((value) => {
+			if (value.trim() === '') {
+				throw new Error('update canceled by user');
+			}
+
+			return value;
+		});
+
+		target_repo.UpdateRepositoryConf({
+			repository_access_token,
+			repository_name,
+			repository_workspace_name,
+		});
+
+		APP_STATE.SetMenu(
+			'repository:sync branches',
+			APP_STATE.GetTargetRepositoryId()
+		);
+	} catch (err: unknown) {
+		APP_STATE.SetMenu('repository:options', APP_STATE.GetTargetRepositoryId());
+	}
+}
+
+async function EditRepositoryAlias(
+	APP_STATE: HallucigeniaState,
+	REPOSITORIES: RepositoriesManager
+) {
+	const target_repo = REPOSITORIES.GetRepo(APP_STATE.GetTargetRepositoryId());
+
+	console.log(
+		chalk.bgCyanBright(chalk.black(` UPDATE REMOTE REPOSITORY CONNECTION \n`))
+	);
+
+	console.log(chalk.yellow('(leave the field empty to cancel)\n'));
+
+	try {
+		const repository_slug = await input({
+			message: 'repository alias: ',
+			default: target_repo.GetRepositorySlug(),
+			validate: (value) => {
+				const v = GetValidatorFunction('bitbucket', 'slug');
+
+				return v(
+					value,
+					REPOSITORIES.GetRepos()
+						.filter(
+							(repo) => repo.GetRepositoryId() !== target_repo.GetRepositoryId()
+						)
+						.map((repo) => repo.GetRepositorySlug())
+				);
+			},
+		}).then((value) => {
+			if (value.trim() === '') {
+				throw new Error('canceled by the user');
+			}
+
+			return value;
+		});
+
+		target_repo.UpdateRepositorySlug(repository_slug);
+	} finally {
+		APP_STATE.SetMenu('repository:options', APP_STATE.GetTargetRepositoryId());
+	}
+}
+
 function RenderMenu(
 	APP_STATE: HallucigeniaState,
 	REPOSITORIES: RepositoriesManager
@@ -647,18 +825,22 @@ function RenderMenu(
 			return Repositories(APP_STATE, REPOSITORIES);
 		case 'add repository':
 			return AddRepository(APP_STATE, REPOSITORIES);
-		case 'repository options':
-			return RepositoryOptions(APP_STATE, REPOSITORIES);
-		case 'delete repository':
-			return DeleteRepository(APP_STATE, REPOSITORIES);
-		case 'repository branches':
-			return RepositoryBranches(APP_STATE, REPOSITORIES);
 		case 'check repositories connection':
 			return CheckRepositoriesConnection(APP_STATE, REPOSITORIES);
-		case 'sync repository branches':
-			return SyncRepositoryBranches(APP_STATE, REPOSITORIES);
-		case 'repository side effects':
+		case 'repository:options':
+			return RepositoryOptions(APP_STATE, REPOSITORIES);
+		case 'repository:branches':
+			return RepositoryBranches(APP_STATE, REPOSITORIES);
+		case 'repository:side effects':
 			return RepositorySideEffects(APP_STATE, REPOSITORIES);
+		case 'repository:delete':
+			return DeleteRepository(APP_STATE, REPOSITORIES);
+		case 'repository:sync branches':
+			return SyncRepositoryBranches(APP_STATE, REPOSITORIES);
+		case 'repository:edit connection':
+			return EditRepositoryConnection(APP_STATE, REPOSITORIES);
+		case 'repository:edit alias':
+			return EditRepositoryAlias(APP_STATE, REPOSITORIES);
 		case 'quit':
 		default:
 			clear();
