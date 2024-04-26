@@ -66,8 +66,6 @@ async function WatchMode(REPOSITORIES: RepositoriesManager) {
 		(r) => r.GetRepositoryConf().remote_connection_status === 'ok'
 	);
 
-	// FIXME: I've have noticed that if I revoke the access token from a repository(and it still have the connection status "ok"), trying to watch it will lock the program.
-
 	// be cautious with this bc bitbucket has a rate limit on API requests and git operations as well ~> https://support.atlassian.com/bitbucket-cloud/docs/api-request-limits/
 	const branches_to_clone = await new Promise<
 		{ repo_id: string; branch_name: string; branch_hash: string }[]
@@ -94,7 +92,13 @@ async function WatchMode(REPOSITORIES: RepositoriesManager) {
 
 				const res = remote_branches_info.at(idx)!;
 
-				if (res.status === 'rejected') return;
+				if (res.status === 'rejected') {
+					obs.UpdateRepositoryConf({
+						remote_connection_status: 'ko',
+					});
+
+					continue;
+				}
 
 				for (const o of obs.GetRepositoryConf().observed_branches) {
 					const found = res.value.find((b) => b.name === o.branch_name);

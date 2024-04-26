@@ -35,6 +35,8 @@ export class Repository {
 			recursive: true,
 		});
 
+		// TODO: when we start encrypting the .conf, do it here!
+
 		fs.writeFileSync(
 			path.join(
 				REPOSITORIES_PATH_IDENTIFIER,
