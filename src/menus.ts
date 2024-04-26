@@ -30,6 +30,7 @@ async function Home(
 	const answer = await select<menu>({
 		message: '',
 		loop: false,
+		pageSize: 10,
 		choices: [
 			{
 				name: 'Watcher',
@@ -94,6 +95,8 @@ async function WatchMode(REPOSITORIES: RepositoriesManager) {
 
 				if (res.status === 'rejected') {
 					obs.UpdateRepositoryConf({
+						branches: [],
+						observed_branches: [],
 						remote_connection_status: 'ko',
 					});
 
@@ -218,6 +221,7 @@ async function Repositories(
 	const answer = await select<menu | `id_${string}`>({
 		message: '',
 		loop: false,
+		pageSize: 10,
 		choices: [
 			{
 				name: chalk.yellow('< go back'),
@@ -367,6 +371,7 @@ async function RepositoryOptions(
 	const repository_answer = await select<menu>({
 		message: '',
 		loop: false,
+		pageSize: 10,
 		choices: [
 			{
 				name: chalk.yellow('< go back'),
@@ -475,6 +480,7 @@ async function RepositoryBranches(
 
 	const branch_list_answer = await checkbox({
 		message: 'select branches to observe',
+		pageSize: 10,
 		choices: [
 			...branches_already_selected.map((b) => ({
 				name: b.branch_name,
@@ -531,6 +537,8 @@ async function CheckRepositoriesConnection(
 			});
 		} catch (err) {
 			repository.UpdateRepositoryConf({
+				branches: [],
+				observed_branches: [],
 				remote_connection_status: 'ko',
 			});
 		}
@@ -578,6 +586,7 @@ async function SyncRepositoryBranches(
 	} catch (err) {
 		target_repo.UpdateRepositoryConf({
 			branches: [],
+			observed_branches: [],
 			remote_connection_status: 'ko',
 		});
 	}
@@ -605,6 +614,7 @@ async function RepositorySideEffects(
 
 	const answer = await select<menu | 'default script' | `branch_${string}`>({
 		message: '',
+		pageSize: 10,
 		loop: false,
 		choices: [
 			{
