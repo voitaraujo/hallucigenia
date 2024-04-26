@@ -574,6 +574,7 @@ async function SyncRepositoryBranches(
 	} catch (err) {
 		target_repo.UpdateRepositoryConf({
 			branches: [],
+			remote_connection_status: 'ko',
 		});
 	}
 
