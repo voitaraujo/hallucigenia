@@ -7,7 +7,6 @@ import {
 	CONFIGURATION_FILE_IDENTIFIER,
 	REPOSITORIES_PATH_IDENTIFIER,
 } from './constants';
-import { RepositoryConfSchema } from './schemas';
 import { RepositoryConf } from './types';
 import { GetPlatformScriptingExtension } from './utils';
 
@@ -32,16 +31,6 @@ export class Repository {
 	) {
 		const id = randomUUID();
 
-		const safe_conf_content = RepositoryConfSchema.safeParse({
-			repository_id: id,
-			...newRepoConfParts,
-			observed_branches: [],
-			branches: [],
-			remote_connection_status: 'ok',
-		} satisfies RepositoryConf);
-
-		if (!safe_conf_content.success) throw new Error('Invalid repository .conf');
-
 		fs.mkdirSync(path.join(REPOSITORIES_PATH_IDENTIFIER, repository_slug), {
 			recursive: true,
 		});
@@ -52,7 +41,13 @@ export class Repository {
 				repository_slug,
 				CONFIGURATION_FILE_IDENTIFIER
 			),
-			JSON.stringify(safe_conf_content.data),
+			JSON.stringify({
+				repository_id: id,
+				...newRepoConfParts,
+				observed_branches: [],
+				branches: [],
+				remote_connection_status: 'ok',
+			}),
 			{
 				encoding: 'utf-8',
 			}
@@ -88,13 +83,7 @@ export class Repository {
 	GetRepositoryConf() {
 		const safe_conf_content = this.#GetConfAsSafeObject(this.#repository_slug);
 
-		if (!safe_conf_content.success) {
-			throw new Error(
-				`Failed to create the Repository class to "${this.#repository_slug}"`
-			);
-		}
-
-		return safe_conf_content.data;
+		return safe_conf_content;
 	}
 
 	UpdateRepositoryConf(
@@ -317,7 +306,8 @@ export class Repository {
 			obj = {};
 		}
 
-		return RepositoryConfSchema.safeParse(obj);
+		// TODO: when the .conf files start being encrypted, here we'll decrypt it
+		return obj as RepositoryConf;
 	}
 
 	#GetConfLocationPath(repoSlug: string) {
