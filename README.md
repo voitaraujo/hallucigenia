@@ -30,7 +30,7 @@
 
 ## Installation
 
-install the CLI globally using your preferred package manager.
+install the TUI globally using your preferred package manager.
 
 ```
 npm install -g hallucigenia
@@ -38,7 +38,7 @@ npm install -g hallucigenia
 
 ## Usage
 
-First of all, type `hallucigenia` on your terminal to run the CLI.
+First of all, type `hallucigenia` on your terminal to run the TUI.
 
 ### Setting up new repository
 
@@ -108,7 +108,7 @@ hallucigenia
 
 ## Motivation
 
-This CLI was intended to be only used internally by a client, which needed a simple way to deploy and test(locally) whenever some branches from his bitbucket repository got updated. Since I saw some people looking for something similar while doing my research, I decided to make it public.
+This TUI was intended to be only used internally by a client, which needed a simple way to deploy and test(locally) whenever some branches from his bitbucket repository got updated. Since I saw some people looking for something similar while doing my research, I decided to make it public.
 
 ## Limitations
 
